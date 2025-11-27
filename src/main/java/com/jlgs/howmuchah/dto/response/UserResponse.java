@@ -1,5 +1,6 @@
 package com.jlgs.howmuchah.dto.response;
 
+import com.jlgs.howmuchah.entity.User;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -15,7 +16,7 @@ public class UserResponse {
     private String name;
 
     // Convenience constructor from User entity
-    public static UserResponse fromUser(com.jlgs.howmuchah.entity.User user) {
+    public static UserResponse fromUser(User user) {
         return new UserResponse(
                 user.getId(),
                 user.getEmail(),
