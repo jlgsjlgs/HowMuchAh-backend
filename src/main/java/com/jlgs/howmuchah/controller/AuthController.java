@@ -45,21 +45,4 @@ public class AuthController {
             return ResponseEntity.status(500).build();
         }
     }
-
-    @GetMapping("/me")
-    public ResponseEntity<UserResponse> getCurrentUser(
-            @AuthenticationPrincipal Jwt jwt) {
-
-        try {
-            UUID userId = jwtUtil.extractUserId(jwt);
-
-            return userService.getUserById(userId)
-                    .map(UserResponse::fromUser)
-                    .map(ResponseEntity::ok)
-                    .orElse(ResponseEntity.notFound().build());
-
-        } catch (Exception e) {
-            return ResponseEntity.status(500).build();
-        }
-    }
 }
