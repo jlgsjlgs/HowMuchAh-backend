@@ -23,9 +23,6 @@ public class CorsConfig {
         // Split the comma-separated origins from properties
         configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
 
-        // Or for development, allow all origins (NOT recommended for production):
-        // configuration.addAllowedOrigin("*");
-
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

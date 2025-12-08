@@ -27,22 +27,16 @@ public class AuthController {
     public ResponseEntity<UserResponse> verifyAndSyncUser(
             @AuthenticationPrincipal Jwt jwt) {
 
-        try {
-            // Extract user info from JWT
-            UUID userId = jwtUtil.extractUserId(jwt);
-            String email = jwtUtil.extractEmail(jwt);
-            String name = jwtUtil.extractName(jwt);
+        // Extract user info from JWT
+        UUID userId = jwtUtil.extractUserId(jwt);
+        String email = jwtUtil.extractEmail(jwt);
+        String name = jwtUtil.extractName(jwt);
 
-            // Upsert user to database
-            User user = userService.upsertUser(userId, email, name);
+        // Upsert user to database
+        User user = userService.upsertUser(userId, email, name);
 
-            log.info("User successfully synced - {}",
-                    Encode.forJava(email));
+        log.info("User successfully synced - {}", Encode.forJava(email));
 
-            return ResponseEntity.ok(UserResponse.fromUser(user));
-
-        } catch (Exception e) {
-            return ResponseEntity.status(500).build();
-        }
+        return ResponseEntity.ok(UserResponse.fromUser(user));
     }
 }

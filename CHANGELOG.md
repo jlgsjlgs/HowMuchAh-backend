@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [unreleased]
 
 ### Added
-- Added features for group creation and member invitation
+- Group creation and member invitation features
 
 ### Removed
 - Redundant `AuthController` endpoint

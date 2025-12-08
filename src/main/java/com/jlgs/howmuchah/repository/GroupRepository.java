@@ -17,4 +17,6 @@ public interface GroupRepository extends JpaRepository<Group, UUID> {
             "LEFT JOIN GroupMember gm ON g.id = gm.group.id " +
             "WHERE g.owner.id = :userId OR gm.user.id = :userId")
     List<Group> findAllGroupsForUser(@Param("userId") UUID userId);
+
+    boolean existsByNameAndOwnerId(String name, UUID ownerId);
 }
