@@ -1,6 +1,7 @@
 package com.jlgs.howmuchah.controller;
 
 import com.jlgs.howmuchah.dto.request.GroupCreationRequest;
+import com.jlgs.howmuchah.dto.request.GroupUpdateRequest;
 import com.jlgs.howmuchah.dto.response.GroupResponse;
 import com.jlgs.howmuchah.entity.Group;
 import com.jlgs.howmuchah.service.GroupService;
@@ -61,5 +62,17 @@ public class GroupController {
         groupService.deleteGroup(groupId, userId);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{groupId}")
+    public ResponseEntity<GroupResponse> updateGroup(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID groupId,
+            @RequestBody GroupUpdateRequest request) {
+
+        UUID userId = jwtUtil.extractUserId(jwt);
+        Group updatedGroup = groupService.updateGroup(groupId, userId, request);
+
+        return ResponseEntity.ok(GroupResponse.fromGroup(updatedGroup));
     }
 }

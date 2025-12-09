@@ -1,6 +1,7 @@
 package com.jlgs.howmuchah.service;
 
 import com.jlgs.howmuchah.dto.request.GroupCreationRequest;
+import com.jlgs.howmuchah.dto.request.GroupUpdateRequest;
 import com.jlgs.howmuchah.entity.Group;
 import com.jlgs.howmuchah.entity.User;
 import com.jlgs.howmuchah.repository.GroupRepository;
@@ -56,5 +57,29 @@ public class GroupService {
         }
 
         groupRepository.delete(group);
+    }
+
+    @Transactional
+    public Group updateGroup(UUID groupId, UUID userId, GroupUpdateRequest request) {
+        // Fetch the group
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new IllegalArgumentException("Group not found"));
+
+        // Check if the user is the owner
+        if (!group.getOwner().getId().equals(userId)) {
+            throw new IllegalArgumentException("Only the group owner can delete this group");
+        }
+
+        if (request.getName() != null) {
+            if (request.getName().trim().isEmpty()) {
+                throw new IllegalArgumentException("Group name cannot be empty");
+            }
+            group.setName(request.getName().trim());
+        }
+
+        if (request.getDescription() != null) {
+            group.setDescription(request.getDescription().trim());
+        }
+        return groupRepository.save(group);
     }
 }
