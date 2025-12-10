@@ -6,8 +6,6 @@ import com.jlgs.howmuchah.dto.response.GroupResponse;
 import com.jlgs.howmuchah.entity.Group;
 import com.jlgs.howmuchah.service.GroupService;
 import com.jlgs.howmuchah.util.JwtUtil;
-import jakarta.validation.Valid;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

@@ -65,6 +65,10 @@ public class GroupService {
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new IllegalArgumentException("Group not found"));
 
+        if (request.getName() == null && request.getDescription() == null) {
+            throw new IllegalArgumentException("At least one field must be provided for update");
+        }
+
         // Check if the user is the owner
         if (!group.getOwner().getId().equals(userId)) {
             throw new IllegalArgumentException("Only the group owner can delete this group");

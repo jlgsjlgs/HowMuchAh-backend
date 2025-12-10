@@ -3,6 +3,7 @@ package com.jlgs.howmuchah.exception;
 import com.jlgs.howmuchah.dto.response.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
@@ -16,6 +17,50 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    // JSON parsing errors (400)
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException ex) {
+
+        String cleanMessage = extractCleanMessage(ex);
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .message(cleanMessage)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    // Helper method to clean up Jackson error messages
+    private String extractCleanMessage(HttpMessageNotReadableException ex) {
+        String message = ex.getMessage();
+
+        if (message == null) {
+            return "Invalid request body";
+        }
+
+        // Handle unknown field errors
+        if (message.contains("Unrecognized field")) {
+            int start = message.indexOf("\"") + 1;
+            int end = message.indexOf("\"", start);
+            if (start > 0 && end > start) {
+                String fieldName = message.substring(start, end);
+                return "Unknown field '" + fieldName + "' in request body";
+            }
+        }
+
+        // Handle malformed JSON
+        if (message.contains("JSON parse error")) {
+            return "Malformed JSON in request body";
+        }
+
+        // Default fallback
+        return "Invalid request body format";
+    }
 
     // General runtime errors (500)
     @ExceptionHandler(RuntimeException.class)
