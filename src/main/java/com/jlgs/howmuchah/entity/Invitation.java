@@ -1,5 +1,6 @@
 package com.jlgs.howmuchah.entity;
 
+import com.jlgs.howmuchah.enums.InvitationStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -34,8 +35,10 @@ public class Invitation {
     @JoinColumn(name = "invited_by_user_id", nullable = false)
     private User invitedBy;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private String status = "pending";
+    @Builder.Default
+    private InvitationStatus status = InvitationStatus.PENDING;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
