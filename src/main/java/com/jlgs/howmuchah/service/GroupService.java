@@ -7,6 +7,8 @@ import com.jlgs.howmuchah.entity.User;
 import com.jlgs.howmuchah.repository.GroupRepository;
 import com.jlgs.howmuchah.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.owasp.encoder.Encode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +17,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GroupService {
 
     private final GroupRepository groupRepository;
@@ -37,6 +40,7 @@ public class GroupService {
                 .owner(owner)
                 .build();
 
+        log.info("User {} successfully created group {}", Encode.forJava(owner.getEmail()), Encode.forJava(group.getName()));
         return groupRepository.save(group);
     }
 
@@ -53,16 +57,18 @@ public class GroupService {
 
         // Check if the user is the owner
         if (!group.getOwner().getId().equals(userId)) {
+            log.warn("User {} attempted to maliciously delete group {}", Encode.forJava(String.valueOf(userId)), Encode.forJava(String.valueOf(groupId)));
             throw new IllegalArgumentException("Only the group owner can delete this group");
         }
 
         groupRepository.delete(group);
+        log.info("Successfully deleted group {}", Encode.forJava(group.getName()));
     }
 
     @Transactional
     public Group updateGroup(UUID groupId, UUID userId, GroupUpdateRequest request) {
         // Fetch the group
-        Group group = groupRepository.findById(groupId)
+        Group group = groupRepository.findByIdWithOwner(groupId)
                 .orElseThrow(() -> new IllegalArgumentException("Group not found"));
 
         if (request.getName() == null && request.getDescription() == null) {
@@ -71,7 +77,8 @@ public class GroupService {
 
         // Check if the user is the owner
         if (!group.getOwner().getId().equals(userId)) {
-            throw new IllegalArgumentException("Only the group owner can delete this group");
+            log.warn("User {} attempted to maliciously update group {} details", Encode.forJava(String.valueOf(userId)), Encode.forJava(String.valueOf(groupId)));
+            throw new IllegalArgumentException("Only the group owner can update this group");
         }
 
         if (request.getName() != null) {
@@ -84,6 +91,8 @@ public class GroupService {
         if (request.getDescription() != null) {
             group.setDescription(request.getDescription().trim());
         }
+
+        log.info("Successfully updated group {} details", Encode.forJava(String.valueOf(groupId)));
         return groupRepository.save(group);
     }
 }
