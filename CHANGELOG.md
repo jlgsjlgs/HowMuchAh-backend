@@ -2,10 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [0.2.0]
 
 ### Added
 - Group creation and member invitation features
+- Unit tests for group creation & invitation features
 
 ### Changes
 - Updated `application.properties` to follow best practices
