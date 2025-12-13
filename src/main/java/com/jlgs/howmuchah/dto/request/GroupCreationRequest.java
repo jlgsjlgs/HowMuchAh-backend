@@ -12,9 +12,9 @@ import lombok.NoArgsConstructor;
 public class GroupCreationRequest {
 
     @NotBlank(message = "Group name is required")
-    @Size(min = 1, max = 100, message = "Group name must be between 1 and 100 characters")
+    @Size(min = 1, max = 50, message = "Group name must be between 1 and 50 characters")
     private String name;
 
-    @Size(max = 500, message = "Description must not exceed 500 characters")
+    @Size(max = 150, message = "Description must not exceed 150 characters")
     private String description;
 }
