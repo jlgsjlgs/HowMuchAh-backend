@@ -42,6 +42,7 @@ public class GroupController {
         log.info("User {} creating group", Encode.forJava(jwtUtil.extractEmail(jwt)));
 
         Group createdGroup = groupService.createGroup(userId, request);
+        log.info("User {} successfully created group {} with groupId {}", userId, Encode.forJava(createdGroup.getName()), createdGroup.getId());
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(GroupResponse.fromGroup(createdGroup));
@@ -72,6 +73,7 @@ public class GroupController {
         log.info("User {} deleting group {}", Encode.forJava(jwtUtil.extractEmail(jwt)), Encode.forJava(String.valueOf(groupId)));
 
         groupService.deleteGroup(groupId, userId);
+        log.info("Successfully deleted group {}", Encode.forJava(String.valueOf(groupId)));
 
         return ResponseEntity.noContent().build();
     }
@@ -86,6 +88,7 @@ public class GroupController {
         log.info("User {} updating group {}", Encode.forJava(jwtUtil.extractEmail(jwt)), Encode.forJava(String.valueOf(groupId)));
 
         Group updatedGroup = groupService.updateGroup(groupId, userId, request);
+        log.info("Successfully updated group {} details", Encode.forJava(String.valueOf(groupId)));
 
         return ResponseEntity.ok(GroupResponse.fromGroup(updatedGroup));
     }
@@ -101,6 +104,7 @@ public class GroupController {
                 Encode.forJava(jwtUtil.extractEmail(jwt)), Encode.forJava(request.getInvitedEmail()), Encode.forJava(String.valueOf(groupId)));
 
         Invitation invitation = invitationService.sendInvitation(groupId, userId, request);
+        log.info("Successfully invited {} to group {}", Encode.forJava(request.getInvitedEmail()), Encode.forJava(String.valueOf(groupId)));
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(InvitationResponse.fromInvitation(invitation));
@@ -116,6 +120,7 @@ public class GroupController {
                 Encode.forJava(jwtUtil.extractEmail(jwt)), Encode.forJava(String.valueOf(groupId)));
 
         List<Invitation> invitations = invitationService.getAllInvitationsForGroup(groupId, userId);
+        log.info("Found {} invitations for group {}", invitations.size(), Encode.forJava(String.valueOf(groupId)));
 
         List<InvitationResponse> invitationResponses = invitations.stream()
                 .map(InvitationResponse::fromInvitation)
@@ -135,6 +140,8 @@ public class GroupController {
                 Encode.forJava(jwtUtil.extractEmail(jwt)), Encode.forJava(String.valueOf(invitationId)), Encode.forJava(String.valueOf(groupId)));
 
         invitationService.revokeInvitation(groupId, invitationId, userId);
+        log.info("Successfully revoked invitation {} for group {}",
+                Encode.forJava(Encode.forJava(String.valueOf(invitationId))), Encode.forJava(String.valueOf(groupId)));
 
         return ResponseEntity.noContent().build();
     }

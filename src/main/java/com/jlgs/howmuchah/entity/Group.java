@@ -1,10 +1,7 @@
 package com.jlgs.howmuchah.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -15,7 +12,8 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "groups", schema = "public")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -43,17 +41,4 @@ public class Group {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
-
-    @OneToMany(mappedBy = "group", cascade = CascadeType.PERSIST, orphanRemoval = true)
-    @Builder.Default
-    private Set<GroupMember> members = new HashSet<>();
-
-    // Helper method to add members
-    public void addMember(User user) {
-        GroupMember member = GroupMember.builder()
-                .group(this)
-                .user(user)
-                .build();
-        this.members.add(member);
-    }
 }

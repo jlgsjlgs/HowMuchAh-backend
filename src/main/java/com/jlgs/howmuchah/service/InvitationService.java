@@ -2,9 +2,11 @@ package com.jlgs.howmuchah.service;
 
 import com.jlgs.howmuchah.dto.request.InvitationRequest;
 import com.jlgs.howmuchah.entity.Group;
+import com.jlgs.howmuchah.entity.GroupMember;
 import com.jlgs.howmuchah.entity.Invitation;
 import com.jlgs.howmuchah.entity.User;
 import com.jlgs.howmuchah.enums.InvitationStatus;
+import com.jlgs.howmuchah.repository.GroupMemberRepository;
 import com.jlgs.howmuchah.repository.GroupRepository;
 import com.jlgs.howmuchah.repository.InvitationRepository;
 import com.jlgs.howmuchah.repository.UserRepository;
@@ -25,6 +27,7 @@ public class InvitationService {
     private final InvitationRepository invitationRepository;
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
+    private final GroupMemberRepository groupMemberRepository;
 
     @Transactional
     public Invitation sendInvitation(UUID groupId, UUID userId, InvitationRequest request) {
@@ -46,12 +49,14 @@ public class InvitationService {
         // No new invitation will be sent if status is PENDING || ACCEPTED || DECLINED
         List<Invitation> existingInvitations = invitationRepository.findByGroupId(groupId);
         boolean alreadyInvited = existingInvitations.stream()
-                .anyMatch(inv -> inv.getInvitedEmail().equals(request.getInvitedEmail())
-                        && (inv.getStatus() == InvitationStatus.PENDING || inv.getStatus() == InvitationStatus.ACCEPTED || inv.getStatus() == InvitationStatus.DECLINED));
+                .anyMatch(inv -> inv.getInvitedEmail().equals(request.getInvitedEmail()));
 
         if (alreadyInvited) {
             throw new IllegalArgumentException("An invitation to this email already exists for this group");
         }
+
+        log.info("Creating invitation for {} to group {} - Initiated by {}",
+                Encode.forJava(request.getInvitedEmail()), Encode.forJava(String.valueOf(groupId)), Encode.forJava(invitedBy.getEmail()));
 
         // Create and save invitation
         Invitation invitation = Invitation.builder()
@@ -61,7 +66,6 @@ public class InvitationService {
                 .status(InvitationStatus.PENDING)
                 .build();
 
-        log.info("Successfully invited {} to group {}", Encode.forJava(request.getInvitedEmail()), Encode.forJava(group.getName()));
         return invitationRepository.save(invitation);
     }
 
@@ -109,10 +113,85 @@ public class InvitationService {
             throw new IllegalArgumentException("Only pending invitations can be revoked");
         }
 
+        log.info("Attempting to revoke invitation {} belonging to {} for group {}",
+                Encode.forJava(String.valueOf(invitationId)), Encode.forJava(invitation.getInvitedEmail()), Encode.forJava(String.valueOf(groupId)));
+
         // Update status to REVOKED
         invitation.setStatus(InvitationStatus.REVOKED);
         invitationRepository.save(invitation);
-        log.info("Successfully revoked invitation to {} for group {}",
-                Encode.forJava(invitation.getInvitedEmail()), Encode.forJava(group.getName()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<Invitation> getPendingInvitationsForEmail(String email) {
+        return invitationRepository.findByInvitedEmailAndStatus(email, InvitationStatus.PENDING);
+    }
+
+    @Transactional
+    public Invitation acceptInvitation(UUID invitationId, UUID userId, String userEmail) {
+
+        Invitation invitation = invitationRepository.findByIdWithDetails(invitationId)
+                .orElseThrow(() -> new IllegalArgumentException("Invitation not found"));
+
+        // Verify if invitation is meant for this user
+        if (!invitation.getInvitedEmail().equalsIgnoreCase(userEmail)) {
+            log.warn("User {} maliciously attempted to accept invitation {} meant for {}",
+                    Encode.forJava(userEmail), invitationId, Encode.forJava(invitation.getInvitedEmail()));
+            throw new IllegalArgumentException("This invitation is not for you");
+        }
+
+        // Verify if invitation is PENDING status
+        if (invitation.getStatus() != InvitationStatus.PENDING) {
+            log.warn("Attempted to accept non-pending invitation {} with status {}",
+                    invitationId, invitation.getStatus());
+            throw new IllegalArgumentException("This invitation is no longer pending");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        boolean alreadyMember = groupMemberRepository.existsByGroupIdAndUserId(
+                invitation.getGroup().getId(), userId);
+
+        if (alreadyMember) {
+            log.warn("User {} is already a member of group {}",
+                    Encode.forJava(userEmail), invitation.getGroup().getId());
+            throw new IllegalArgumentException("You are already a member of this group");
+        }
+
+        // Add user to group
+        GroupMember member = GroupMember.builder()
+                .group(invitation.getGroup())
+                .user(user)
+                .build();
+
+        groupMemberRepository.save(member);
+
+        // Update invitation status
+        invitation.setStatus(InvitationStatus.ACCEPTED);
+        return invitationRepository.save(invitation);
+    }
+
+    @Transactional public Invitation declineInvitation(UUID invitationId, String userEmail) {
+
+        Invitation invitation = invitationRepository.findByIdWithDetails(invitationId)
+                .orElseThrow(() -> new IllegalArgumentException("Invitation not found"));
+
+        // Verify if invitation is meant for this user
+        if (!invitation.getInvitedEmail().equalsIgnoreCase(userEmail)) {
+            log.warn("User {} maliciously attempted to decline invitation {} meant for {}",
+                    Encode.forJava(userEmail), invitationId, Encode.forJava(invitation.getInvitedEmail()));
+            throw new IllegalArgumentException("This invitation is not for you");
+        }
+
+        // Verify if invitation is PENDING status
+        if (invitation.getStatus() != InvitationStatus.PENDING) {
+            log.warn("Attempted to decline non-pending invitation {} with status {}",
+                    invitationId, invitation.getStatus());
+            throw new IllegalArgumentException("This invitation is no longer pending");
+        }
+
+        // Update invitation status
+        invitation.setStatus(InvitationStatus.DECLINED);
+        return invitationRepository.save(invitation);
     }
 }

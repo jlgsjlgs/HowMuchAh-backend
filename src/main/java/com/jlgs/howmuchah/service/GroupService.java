@@ -43,10 +43,16 @@ public class GroupService {
                 .owner(owner)
                 .build();
 
-        group.addMember(owner);
+        Group savedGroup = groupRepository.save(group);
 
-        log.info("User {} successfully created group {}", Encode.forJava(owner.getEmail()), Encode.forJava(group.getName()));
-        return groupRepository.save(group);
+        GroupMember ownerMember = GroupMember.builder()
+                .group(savedGroup)
+                .user(owner)
+                .build();
+
+        groupMemberRepository.save(ownerMember);
+
+        return savedGroup;
     }
 
     @Transactional(readOnly = true)
@@ -67,7 +73,6 @@ public class GroupService {
         }
 
         groupRepository.delete(group);
-        log.info("Successfully deleted group {}", Encode.forJava(group.getName()));
     }
 
     @Transactional
@@ -97,7 +102,6 @@ public class GroupService {
             group.setDescription(request.getDescription().trim());
         }
 
-        log.info("Successfully updated group {} details", Encode.forJava(String.valueOf(groupId)));
         return groupRepository.save(group);
     }
 }

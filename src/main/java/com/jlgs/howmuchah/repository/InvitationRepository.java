@@ -17,9 +17,6 @@ public interface InvitationRepository extends JpaRepository<Invitation, UUID> {
     // Find all invitations for a group
     List<Invitation> findByGroupId(UUID groupId);
 
-    // Find all invitations for an email
-    List<Invitation> findByInvitedEmail(String invitedEmail);
-
     // Fetch invitations with group and invitedBy eagerly loaded
     @Query("SELECT i FROM Invitation i " +
             "JOIN FETCH i.group " +
