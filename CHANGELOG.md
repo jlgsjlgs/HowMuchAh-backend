@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Group creation and member invitation features
 
+### Changes
+- Updated `application.properties` to follow best practices
+
 ### Removed
 - Redundant `AuthController` endpoint
 

@@ -3,7 +3,9 @@ package com.jlgs.howmuchah.service;
 import com.jlgs.howmuchah.dto.request.GroupCreationRequest;
 import com.jlgs.howmuchah.dto.request.GroupUpdateRequest;
 import com.jlgs.howmuchah.entity.Group;
+import com.jlgs.howmuchah.entity.GroupMember;
 import com.jlgs.howmuchah.entity.User;
+import com.jlgs.howmuchah.repository.GroupMemberRepository;
 import com.jlgs.howmuchah.repository.GroupRepository;
 import com.jlgs.howmuchah.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ public class GroupService {
 
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
+    private final GroupMemberRepository groupMemberRepository;
 
     @Transactional
     public Group createGroup(UUID ownerId, GroupCreationRequest request) {
@@ -39,6 +42,8 @@ public class GroupService {
                 .description(request.getDescription())
                 .owner(owner)
                 .build();
+
+        group.addMember(owner);
 
         log.info("User {} successfully created group {}", Encode.forJava(owner.getEmail()), Encode.forJava(group.getName()));
         return groupRepository.save(group);
