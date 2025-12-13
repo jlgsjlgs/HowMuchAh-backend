@@ -5,6 +5,7 @@ import com.jlgs.howmuchah.dto.request.GroupCreationRequest;
 import com.jlgs.howmuchah.dto.request.GroupUpdateRequest;
 import com.jlgs.howmuchah.dto.request.InvitationRequest;
 import com.jlgs.howmuchah.entity.Group;
+import com.jlgs.howmuchah.entity.GroupMember;
 import com.jlgs.howmuchah.entity.Invitation;
 import com.jlgs.howmuchah.entity.User;
 import com.jlgs.howmuchah.enums.InvitationStatus;
@@ -20,6 +21,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -458,5 +460,199 @@ class GroupControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(invitationService, times(1)).revokeInvitation(groupId, invitationId, userId);
+    }
+
+    // ==================== getGroupMembers Tests ====================
+
+    @Test
+    @DisplayName("GET /api/groups/{groupId}/members - Should return all members when user has access")
+    void getGroupMembers_WhenUserHasAccess_ShouldReturn200() throws Exception {
+        // Arrange
+        User member1 = new User();
+        member1.setId(userId);
+        member1.setEmail("owner@example.com");
+        member1.setName("Owner User");
+
+        User member2 = new User();
+        member2.setId(UUID.randomUUID());
+        member2.setEmail("member@example.com");
+        member2.setName("Member User");
+
+        GroupMember gm1 = new GroupMember();
+        gm1.setUser(member1);
+        gm1.setGroup(testGroup);
+
+        GroupMember gm2 = new GroupMember();
+        gm2.setUser(member2);
+        gm2.setGroup(testGroup);
+
+        List<GroupMember> members = Arrays.asList(gm1, gm2);
+
+        when(groupService.getGroupMembers(groupId, userId)).thenReturn(members);
+
+        // Act & Assert
+        mockMvc.perform(get("/api/groups/{groupId}/members", groupId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].userEmail").value("owner@example.com"))
+                .andExpect(jsonPath("$[1].userEmail").value("member@example.com"));
+
+        verify(groupService, times(1)).getGroupMembers(groupId, userId);
+    }
+
+    @Test
+    @DisplayName("GET /api/groups/{groupId}/members - Should return 403 when user has no access")
+    void getGroupMembers_WhenUserHasNoAccess_ShouldReturn403() throws Exception {
+        // Arrange
+        when(groupService.getGroupMembers(groupId, userId))
+                .thenThrow(new AccessDeniedException("You don't have access to this group"));
+
+        // Act & Assert
+        mockMvc.perform(get("/api/groups/{groupId}/members", groupId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
+                .andExpect(status().isForbidden());
+
+        verify(groupService, times(1)).getGroupMembers(groupId, userId);
+    }
+
+    @Test
+    @DisplayName("GET /api/groups/{groupId}/members - Should return 400 when group not found")
+    void getGroupMembers_WhenGroupNotFound_ShouldReturn400() throws Exception {
+        // Arrange
+        when(groupService.getGroupMembers(groupId, userId))
+                .thenThrow(new IllegalArgumentException("Group not found"));
+
+        // Act & Assert
+        mockMvc.perform(get("/api/groups/{groupId}/members", groupId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
+                .andExpect(status().isBadRequest());
+
+        verify(groupService, times(1)).getGroupMembers(groupId, userId);
+    }
+
+    // ==================== removeMember Tests ====================
+
+    @Test
+    @DisplayName("DELETE /api/groups/{groupId}/members/{userId} - Should remove member and return 204")
+    void removeMember_WhenUserIsOwner_ShouldReturn204() throws Exception {
+        // Arrange
+        UUID memberIdToRemove = UUID.randomUUID();
+        doNothing().when(groupService).removeMember(groupId, memberIdToRemove, userId);
+
+        // Act & Assert
+        mockMvc.perform(delete("/api/groups/{groupId}/members/{userId}", groupId, memberIdToRemove)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
+                .andExpect(status().isNoContent());
+
+        verify(groupService, times(1)).removeMember(groupId, memberIdToRemove, userId);
+    }
+
+    @Test
+    @DisplayName("DELETE /api/groups/{groupId}/members/{userId} - Should return 403 when user is not owner")
+    void removeMember_WhenUserIsNotOwner_ShouldReturn403() throws Exception {
+        // Arrange
+        UUID memberIdToRemove = UUID.randomUUID();
+        doThrow(new AccessDeniedException("Only the group owner can remove members"))
+                .when(groupService).removeMember(groupId, memberIdToRemove, userId);
+
+        // Act & Assert
+        mockMvc.perform(delete("/api/groups/{groupId}/members/{userId}", groupId, memberIdToRemove)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
+                .andExpect(status().isForbidden());
+
+        verify(groupService, times(1)).removeMember(groupId, memberIdToRemove, userId);
+    }
+
+    @Test
+    @DisplayName("DELETE /api/groups/{groupId}/members/{userId} - Should return 400 when trying to remove owner")
+    void removeMember_WhenTryingToRemoveOwner_ShouldReturn400() throws Exception {
+        // Arrange
+        doThrow(new IllegalArgumentException("Cannot remove the group owner"))
+                .when(groupService).removeMember(groupId, userId, userId);
+
+        // Act & Assert
+        mockMvc.perform(delete("/api/groups/{groupId}/members/{userId}", groupId, userId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
+                .andExpect(status().isBadRequest());
+
+        verify(groupService, times(1)).removeMember(groupId, userId, userId);
+    }
+
+    @Test
+    @DisplayName("DELETE /api/groups/{groupId}/members/{userId} - Should return 400 when user is not a member")
+    void removeMember_WhenUserNotMember_ShouldReturn400() throws Exception {
+        // Arrange
+        UUID nonMemberId = UUID.randomUUID();
+        doThrow(new IllegalArgumentException("User is not a member of this group"))
+                .when(groupService).removeMember(groupId, nonMemberId, userId);
+
+        // Act & Assert
+        mockMvc.perform(delete("/api/groups/{groupId}/members/{userId}", groupId, nonMemberId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
+                .andExpect(status().isBadRequest());
+
+        verify(groupService, times(1)).removeMember(groupId, nonMemberId, userId);
+    }
+
+// ==================== leaveGroup Tests ====================
+
+    @Test
+    @DisplayName("POST /api/groups/{groupId}/leave - Should allow member to leave and return 204")
+    void leaveGroup_WhenUserIsMember_ShouldReturn204() throws Exception {
+        // Arrange
+        doNothing().when(groupService).leaveGroup(groupId, userId);
+
+        // Act & Assert
+        mockMvc.perform(post("/api/groups/{groupId}/leave", groupId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
+                .andExpect(status().isNoContent());
+
+        verify(groupService, times(1)).leaveGroup(groupId, userId);
+    }
+
+    @Test
+    @DisplayName("POST /api/groups/{groupId}/leave - Should return 400 when owner tries to leave")
+    void leaveGroup_WhenOwnerTriesToLeave_ShouldReturn400() throws Exception {
+        // Arrange
+        doThrow(new IllegalArgumentException("Group owner cannot leave. Delete the group instead."))
+                .when(groupService).leaveGroup(groupId, userId);
+
+        // Act & Assert
+        mockMvc.perform(post("/api/groups/{groupId}/leave", groupId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
+                .andExpect(status().isBadRequest());
+
+        verify(groupService, times(1)).leaveGroup(groupId, userId);
+    }
+
+    @Test
+    @DisplayName("POST /api/groups/{groupId}/leave - Should return 400 when user is not a member")
+    void leaveGroup_WhenUserNotMember_ShouldReturn400() throws Exception {
+        // Arrange
+        doThrow(new IllegalArgumentException("You are not a member of this group"))
+                .when(groupService).leaveGroup(groupId, userId);
+
+        // Act & Assert
+        mockMvc.perform(post("/api/groups/{groupId}/leave", groupId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
+                .andExpect(status().isBadRequest());
+
+        verify(groupService, times(1)).leaveGroup(groupId, userId);
+    }
+
+    @Test
+    @DisplayName("POST /api/groups/{groupId}/leave - Should return 400 when group not found")
+    void leaveGroup_WhenGroupNotFound_ShouldReturn400() throws Exception {
+        // Arrange
+        doThrow(new IllegalArgumentException("Group not found"))
+                .when(groupService).leaveGroup(groupId, userId);
+
+        // Act & Assert
+        mockMvc.perform(post("/api/groups/{groupId}/leave", groupId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
+                .andExpect(status().isBadRequest());
+
+        verify(groupService, times(1)).leaveGroup(groupId, userId);
     }
 }

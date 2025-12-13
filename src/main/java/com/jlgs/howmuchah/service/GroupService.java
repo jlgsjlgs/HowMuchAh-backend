@@ -4,6 +4,7 @@ import com.jlgs.howmuchah.dto.request.GroupCreationRequest;
 import com.jlgs.howmuchah.dto.request.GroupUpdateRequest;
 import com.jlgs.howmuchah.entity.Group;
 import com.jlgs.howmuchah.entity.GroupMember;
+import com.jlgs.howmuchah.entity.GroupMemberId;
 import com.jlgs.howmuchah.entity.User;
 import com.jlgs.howmuchah.repository.GroupMemberRepository;
 import com.jlgs.howmuchah.repository.GroupRepository;
@@ -11,6 +12,7 @@ import com.jlgs.howmuchah.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.owasp.encoder.Encode;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -103,5 +105,64 @@ public class GroupService {
         }
 
         return groupRepository.save(group);
+    }
+
+    @Transactional(readOnly = true)
+    public List<GroupMember> getGroupMembers(UUID groupId, UUID requestingUserId) {
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new IllegalArgumentException("Group not found"));
+
+        // Verify the user is a member or owner
+        boolean isMember = groupMemberRepository.existsByGroupIdAndUserId(groupId, requestingUserId);
+        boolean isOwner = group.getOwner().getId().equals(requestingUserId);
+
+        if (!isMember && !isOwner) {
+            throw new AccessDeniedException("You don't have access to this group");
+        }
+
+        return groupMemberRepository.findByGroupId(groupId);
+    }
+
+    @Transactional
+    public void removeMember(UUID groupId, UUID userIdToRemove, UUID requestingUserId) {
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new IllegalArgumentException("Group not found"));
+
+        // Only owner can remove members
+        if (!group.getOwner().getId().equals(requestingUserId)) {
+            throw new AccessDeniedException("Only the group owner can remove members");
+        }
+
+        // Can't remove the owner
+        if (group.getOwner().getId().equals(userIdToRemove)) {
+            throw new IllegalArgumentException("Cannot remove the group owner");
+        }
+
+        // Remove the member
+        GroupMemberId memberId = new GroupMemberId(groupId, userIdToRemove);
+        if (!groupMemberRepository.existsById(memberId)) {
+            throw new IllegalArgumentException("User is not a member of this group");
+        }
+
+        groupMemberRepository.deleteById(memberId);
+    }
+
+    @Transactional
+    public void leaveGroup(UUID groupId, UUID userId) {
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new IllegalArgumentException("Group not found"));
+
+        // Owner can't leave
+        if (group.getOwner().getId().equals(userId)) {
+            throw new IllegalArgumentException("Group owner cannot leave. Delete the group instead.");
+        }
+
+        // Check if user is a member
+        GroupMemberId memberId = new GroupMemberId(groupId, userId);
+        if (!groupMemberRepository.existsById(memberId)) {
+            throw new IllegalArgumentException("You are not a member of this group");
+        }
+
+        groupMemberRepository.deleteById(memberId);
     }
 }

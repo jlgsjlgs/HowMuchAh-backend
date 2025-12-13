@@ -3,9 +3,11 @@ package com.jlgs.howmuchah.controller;
 import com.jlgs.howmuchah.dto.request.GroupCreationRequest;
 import com.jlgs.howmuchah.dto.request.GroupUpdateRequest;
 import com.jlgs.howmuchah.dto.request.InvitationRequest;
+import com.jlgs.howmuchah.dto.response.GroupMemberResponse;
 import com.jlgs.howmuchah.dto.response.GroupResponse;
 import com.jlgs.howmuchah.dto.response.InvitationResponse;
 import com.jlgs.howmuchah.entity.Group;
+import com.jlgs.howmuchah.entity.GroupMember;
 import com.jlgs.howmuchah.entity.Invitation;
 import com.jlgs.howmuchah.service.GroupService;
 import com.jlgs.howmuchah.service.InvitationService;
@@ -142,6 +144,63 @@ public class GroupController {
         invitationService.revokeInvitation(groupId, invitationId, userId);
         log.info("Successfully revoked invitation {} for group {}",
                 Encode.forJava(Encode.forJava(String.valueOf(invitationId))), Encode.forJava(String.valueOf(groupId)));
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{groupId}/members")
+    public ResponseEntity<List<GroupMemberResponse>> getGroupMembers(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID groupId) {
+
+        UUID userId = jwtUtil.extractUserId(jwt);
+        log.info("User {} fetching members for group {}",
+                Encode.forJava(jwtUtil.extractEmail(jwt)), Encode.forJava(String.valueOf(groupId)));
+
+        List<GroupMember> members = groupService.getGroupMembers(groupId, userId);
+        log.info("Found {} members for group {}", members.size(), Encode.forJava(String.valueOf(groupId)));
+
+        List<GroupMemberResponse> memberResponses = members.stream()
+                .map(GroupMemberResponse::fromGroupMember)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(memberResponses);
+    }
+
+    @DeleteMapping("/{groupId}/members/{userId}")
+    public ResponseEntity<Void> removeMember(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID groupId,
+            @PathVariable UUID userId) {
+
+        UUID ownerId = jwtUtil.extractUserId(jwt);
+        log.info("User {} removing member {} from group {}",
+                Encode.forJava(jwtUtil.extractEmail(jwt)),
+                Encode.forJava(String.valueOf(userId)),
+                Encode.forJava(String.valueOf(groupId)));
+
+        groupService.removeMember(groupId, userId, ownerId);
+        log.info("Successfully removed member {} from group {}",
+                Encode.forJava(String.valueOf(userId)),
+                Encode.forJava(String.valueOf(groupId)));
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{groupId}/leave")
+    public ResponseEntity<Void> leaveGroup(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID groupId) {
+
+        UUID userId = jwtUtil.extractUserId(jwt);
+        log.info("User {} leaving group {}",
+                Encode.forJava(jwtUtil.extractEmail(jwt)),
+                Encode.forJava(String.valueOf(groupId)));
+
+        groupService.leaveGroup(groupId, userId);
+        log.info("User {} successfully left group {}",
+                Encode.forJava(jwtUtil.extractEmail(jwt)),
+                Encode.forJava(String.valueOf(groupId)));
 
         return ResponseEntity.noContent().build();
     }

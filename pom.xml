@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.jlgs</groupId>
 	<artifactId>howmuchah</artifactId>
-	<version>0.1.0</version>
+	<version>0.2.0</version>
 	<name>howmuchah</name>
 	<description>Demo project for Spring Boot</description>
 	<url/>

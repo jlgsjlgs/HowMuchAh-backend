@@ -14,7 +14,10 @@ import java.util.UUID;
 public interface GroupMemberRepository extends JpaRepository<GroupMember, GroupMemberId> {
 
     // Find all members for a group
-    List<GroupMember> findByGroupId(UUID groupId);
+    @Query("SELECT gm FROM GroupMember gm " +
+            "JOIN FETCH gm.user " +
+            "WHERE gm.group.id = :groupId")
+    List<GroupMember> findByGroupId(@Param("groupId") UUID groupId);
 
     // Count members in a group
     long countByGroupId(UUID groupId);
