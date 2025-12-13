@@ -7,7 +7,8 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Group features (Create, delete, modify)
 - Group invitation features (Create, revoke, accept, decline)
-- Unit tests for group creation & invitation features
+- Group member features (View, remove, leave)
+- Unit tests for group creation, invitation and member features
 - `GlobalExceptionHandler` for graceful error handling
 
 ### Changes

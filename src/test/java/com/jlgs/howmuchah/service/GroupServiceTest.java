@@ -4,6 +4,7 @@ import com.jlgs.howmuchah.dto.request.GroupCreationRequest;
 import com.jlgs.howmuchah.dto.request.GroupUpdateRequest;
 import com.jlgs.howmuchah.entity.Group;
 import com.jlgs.howmuchah.entity.GroupMember;
+import com.jlgs.howmuchah.entity.GroupMemberId;
 import com.jlgs.howmuchah.entity.User;
 import com.jlgs.howmuchah.repository.GroupMemberRepository;
 import com.jlgs.howmuchah.repository.GroupRepository;
@@ -16,6 +17,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.Arrays;
 import java.util.List;
@@ -374,5 +376,263 @@ class GroupServiceTest {
                 .hasMessage("Group name cannot be empty");
 
         verify(groupRepository, never()).save(any(Group.class));
+    }
+
+    // ==================== getGroupMembers Tests ====================
+
+    @Test
+    @DisplayName("getGroupMembers - Should return members when user is owner")
+    void getGroupMembers_WhenUserIsOwner_ShouldReturnMembers() {
+        // Arrange
+        User member = new User();
+        member.setId(UUID.randomUUID());
+        member.setEmail("member@example.com");
+
+        GroupMember gm1 = new GroupMember();
+        gm1.setUser(owner);
+        gm1.setGroup(testGroup);
+
+        GroupMember gm2 = new GroupMember();
+        gm2.setUser(member);
+        gm2.setGroup(testGroup);
+
+        List<GroupMember> expectedMembers = Arrays.asList(gm1, gm2);
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(testGroup));
+        when(groupMemberRepository.existsByGroupIdAndUserId(groupId, ownerId)).thenReturn(true);
+        when(groupMemberRepository.findByGroupId(groupId)).thenReturn(expectedMembers);
+
+        // Act
+        List<GroupMember> result = groupService.getGroupMembers(groupId, ownerId);
+
+        // Assert
+        assertThat(result).hasSize(2);
+        assertThat(result).containsExactly(gm1, gm2);
+
+        verify(groupRepository, times(1)).findById(groupId);
+        verify(groupMemberRepository, times(1)).findByGroupId(groupId);
+    }
+
+    @Test
+    @DisplayName("getGroupMembers - Should return members when user is a member")
+    void getGroupMembers_WhenUserIsMember_ShouldReturnMembers() {
+        // Arrange
+        UUID memberId = UUID.randomUUID();
+        GroupMember gm = new GroupMember();
+        gm.setUser(owner);
+        gm.setGroup(testGroup);
+
+        List<GroupMember> expectedMembers = List.of(gm);
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(testGroup));
+        when(groupMemberRepository.existsByGroupIdAndUserId(groupId, memberId)).thenReturn(true);
+        when(groupMemberRepository.findByGroupId(groupId)).thenReturn(expectedMembers);
+
+        // Act
+        List<GroupMember> result = groupService.getGroupMembers(groupId, memberId);
+
+        // Assert
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0)).isEqualTo(gm);
+
+        verify(groupRepository, times(1)).findById(groupId);
+        verify(groupMemberRepository, times(1)).existsByGroupIdAndUserId(groupId, memberId);
+        verify(groupMemberRepository, times(1)).findByGroupId(groupId);
+    }
+
+    @Test
+    @DisplayName("getGroupMembers - Should throw exception when group not found")
+    void getGroupMembers_WhenGroupNotFound_ShouldThrowException() {
+        // Arrange
+        when(groupRepository.findById(groupId)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThatThrownBy(() -> groupService.getGroupMembers(groupId, ownerId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Group not found");
+
+        verify(groupRepository, times(1)).findById(groupId);
+        verify(groupMemberRepository, never()).findByGroupId(any());
+    }
+
+    @Test
+    @DisplayName("getGroupMembers - Should throw exception when user has no access")
+    void getGroupMembers_WhenUserHasNoAccess_ShouldThrowException() {
+        // Arrange
+        UUID unauthorizedUserId = UUID.randomUUID();
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(testGroup));
+        when(groupMemberRepository.existsByGroupIdAndUserId(groupId, unauthorizedUserId)).thenReturn(false);
+
+        // Act & Assert
+        assertThatThrownBy(() -> groupService.getGroupMembers(groupId, unauthorizedUserId))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage("You don't have access to this group");
+
+        verify(groupRepository, times(1)).findById(groupId);
+        verify(groupMemberRepository, times(1)).existsByGroupIdAndUserId(groupId, unauthorizedUserId);
+        verify(groupMemberRepository, never()).findByGroupId(any());
+    }
+
+    // ==================== removeMember Tests ====================
+
+    @Test
+    @DisplayName("removeMember - Should remove member when user is owner")
+    void removeMember_WhenUserIsOwner_ShouldRemoveMember() {
+        // Arrange
+        UUID memberIdToRemove = UUID.randomUUID();
+        GroupMemberId memberId = new GroupMemberId(groupId, memberIdToRemove);
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(testGroup));
+        when(groupMemberRepository.existsById(memberId)).thenReturn(true);
+
+        // Act
+        groupService.removeMember(groupId, memberIdToRemove, ownerId);
+
+        // Assert
+        verify(groupRepository, times(1)).findById(groupId);
+        verify(groupMemberRepository, times(1)).existsById(memberId);
+        verify(groupMemberRepository, times(1)).deleteById(memberId);
+    }
+
+    @Test
+    @DisplayName("removeMember - Should throw exception when user is not owner")
+    void removeMember_WhenUserIsNotOwner_ShouldThrowException() {
+        // Arrange
+        UUID nonOwnerId = UUID.randomUUID();
+        UUID memberIdToRemove = UUID.randomUUID();
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(testGroup));
+
+        // Act & Assert
+        assertThatThrownBy(() -> groupService.removeMember(groupId, memberIdToRemove, nonOwnerId))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessage("Only the group owner can remove members");
+
+        verify(groupRepository, times(1)).findById(groupId);
+        verify(groupMemberRepository, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("removeMember - Should throw exception when trying to remove owner")
+    void removeMember_WhenTryingToRemoveOwner_ShouldThrowException() {
+        // Arrange
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(testGroup));
+
+        // Act & Assert
+        assertThatThrownBy(() -> groupService.removeMember(groupId, ownerId, ownerId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Cannot remove the group owner");
+
+        verify(groupRepository, times(1)).findById(groupId);
+        verify(groupMemberRepository, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("removeMember - Should throw exception when user is not a member")
+    void removeMember_WhenUserNotMember_ShouldThrowException() {
+        // Arrange
+        UUID nonMemberId = UUID.randomUUID();
+        GroupMemberId memberId = new GroupMemberId(groupId, nonMemberId);
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(testGroup));
+        when(groupMemberRepository.existsById(memberId)).thenReturn(false);
+
+        // Act & Assert
+        assertThatThrownBy(() -> groupService.removeMember(groupId, nonMemberId, ownerId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("User is not a member of this group");
+
+        verify(groupRepository, times(1)).findById(groupId);
+        verify(groupMemberRepository, times(1)).existsById(memberId);
+        verify(groupMemberRepository, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("removeMember - Should throw exception when group not found")
+    void removeMember_WhenGroupNotFound_ShouldThrowException() {
+        // Arrange
+        UUID memberIdToRemove = UUID.randomUUID();
+        when(groupRepository.findById(groupId)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThatThrownBy(() -> groupService.removeMember(groupId, memberIdToRemove, ownerId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Group not found");
+
+        verify(groupRepository, times(1)).findById(groupId);
+        verify(groupMemberRepository, never()).deleteById(any());
+    }
+
+    // ==================== leaveGroup Tests ====================
+
+    @Test
+    @DisplayName("leaveGroup - Should allow member to leave group")
+    void leaveGroup_WhenUserIsMember_ShouldLeaveGroup() {
+        // Arrange
+        UUID memberId = UUID.randomUUID();
+        GroupMemberId groupMemberId = new GroupMemberId(groupId, memberId);
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(testGroup));
+        when(groupMemberRepository.existsById(groupMemberId)).thenReturn(true);
+
+        // Act
+        groupService.leaveGroup(groupId, memberId);
+
+        // Assert
+        verify(groupRepository, times(1)).findById(groupId);
+        verify(groupMemberRepository, times(1)).existsById(groupMemberId);
+        verify(groupMemberRepository, times(1)).deleteById(groupMemberId);
+    }
+
+    @Test
+    @DisplayName("leaveGroup - Should throw exception when owner tries to leave")
+    void leaveGroup_WhenOwnerTriesToLeave_ShouldThrowException() {
+        // Arrange
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(testGroup));
+
+        // Act & Assert
+        assertThatThrownBy(() -> groupService.leaveGroup(groupId, ownerId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Group owner cannot leave. Delete the group instead.");
+
+        verify(groupRepository, times(1)).findById(groupId);
+        verify(groupMemberRepository, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("leaveGroup - Should throw exception when user is not a member")
+    void leaveGroup_WhenUserNotMember_ShouldThrowException() {
+        // Arrange
+        UUID nonMemberId = UUID.randomUUID();
+        GroupMemberId memberId = new GroupMemberId(groupId, nonMemberId);
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(testGroup));
+        when(groupMemberRepository.existsById(memberId)).thenReturn(false);
+
+        // Act & Assert
+        assertThatThrownBy(() -> groupService.leaveGroup(groupId, nonMemberId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("You are not a member of this group");
+
+        verify(groupRepository, times(1)).findById(groupId);
+        verify(groupMemberRepository, times(1)).existsById(memberId);
+        verify(groupMemberRepository, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("leaveGroup - Should throw exception when group not found")
+    void leaveGroup_WhenGroupNotFound_ShouldThrowException() {
+        // Arrange
+        UUID memberId = UUID.randomUUID();
+        when(groupRepository.findById(groupId)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThatThrownBy(() -> groupService.leaveGroup(groupId, memberId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Group not found");
+
+        verify(groupRepository, times(1)).findById(groupId);
+        verify(groupMemberRepository, never()).deleteById(any());
     }
 }
