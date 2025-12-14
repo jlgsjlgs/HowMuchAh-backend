@@ -1,5 +1,6 @@
 package com.jlgs.howmuchah.controller;
 
+import com.jlgs.howmuchah.config.RateLimitFilter;
 import com.jlgs.howmuchah.config.TestSecurityConfig;
 import com.jlgs.howmuchah.entity.User;
 import com.jlgs.howmuchah.service.UserService;
@@ -9,6 +10,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -24,7 +27,13 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(AuthController.class)
+@WebMvcTest(
+        controllers = AuthController.class,
+        excludeFilters = @ComponentScan.Filter(
+                type = FilterType.ASSIGNABLE_TYPE,
+                classes = RateLimitFilter.class
+        )
+)
 @Import(TestSecurityConfig.class)
 @DisplayName("AuthController Integration Tests")
 class AuthControllerTest {
