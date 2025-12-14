@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.3.0]
+## [0.3.0] - 14-12-2025
 
 ### Added
 - Rate limiting
@@ -10,7 +10,7 @@ All notable changes to this project will be documented in this file.
 ### Changes
 - Updated unit tests for controllers to ignore rate limiting
 
-## [0.2.0]
+## [0.2.0] - 13-12-2025
 
 ### Added
 - Group features (Create, delete, modify)
@@ -27,10 +27,15 @@ All notable changes to this project will be documented in this file.
 ### Removed
 - Removed `/me` endpoint from `AuthController`
 
-## [0.1.0]
+## [0.1.0] - 17-11-2025
 
 ### Added
 - CORS & Security Configs
 - `AuthController` for syncing user information into database
 - `UserController`, `User` entity and `UserRepository` for handling all user operations
 - `JwtUtil` function for extracting JWT information
+
+## [0.0.0] - 22-10-2025
+
+### Added
+- Initial commit files
