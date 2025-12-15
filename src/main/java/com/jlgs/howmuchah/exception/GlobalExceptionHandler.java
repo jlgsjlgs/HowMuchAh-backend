@@ -1,6 +1,9 @@
 package com.jlgs.howmuchah.exception;
 
 import com.jlgs.howmuchah.dto.response.ErrorResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -16,6 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     // JSON parsing errors (400)
@@ -60,6 +64,40 @@ public class GlobalExceptionHandler {
 
         // Default fallback
         return "Invalid request body format";
+    }
+
+    // Database constraint violations (409)
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        // Log the actual error for debugging
+        log.error("Database integrity violation: {}", ex.getMessage(), ex);
+
+        // Return generic message to user
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error("Conflict")
+                .message("A database constraint was violated. Please check your data and try again.")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
+    // Database access errors (500)
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<ErrorResponse> handleDataAccessException(DataAccessException ex) {
+        // Log the actual error for debugging
+        log.error("Database access error: {}", ex.getMessage(), ex);
+
+        // Return generic message to user
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .error("Internal Server Error")
+                .message("An error occurred while accessing the database. Please try again later.")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 
     // General runtime errors (500)
@@ -139,6 +177,9 @@ public class GlobalExceptionHandler {
     // General catch-all
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+        // Log the actual error for debugging
+        log.error("Unhandled exception: {}", ex.getMessage(), ex);
+
         ErrorResponse error = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())

@@ -16,6 +16,7 @@ import com.jlgs.howmuchah.repository.GroupRepository;
 import com.jlgs.howmuchah.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.owasp.encoder.Encode;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -40,12 +41,19 @@ public class ExpenseService {
     private final UserRepository userRepository;
 
     @Transactional
-    public ExpenseDetailResponse createExpense(ExpenseCreationRequest request) {
+    public ExpenseDetailResponse createExpense(UUID requester, ExpenseCreationRequest request) {
         // Check if group exists
         Group group = groupRepository.findById(request.getGroupId())
                 .orElseThrow(() -> new RuntimeException("Group not found"));
 
-        // Check if user is part of the group
+        // Check if requester is part of the group
+        if (!groupMemberRepository.existsByGroupIdAndUserId(group.getId(), requester)) {
+            log.warn("User {} attempted to maliciously create expense for group {}",
+                    Encode.forJava(String.valueOf(requester)), Encode.forJava(String.valueOf(group.getId())));
+            throw new IllegalArgumentException("Only group members can add expenses for the group");
+        }
+
+        // Check if payer is part of the group
         if (!groupMemberRepository.existsByGroupIdAndUserId(request.getGroupId(), request.getPaidByUserId())) {
             throw new IllegalArgumentException("Payer must be a current group member");
         }
@@ -89,18 +97,25 @@ public class ExpenseService {
     }
 
     @Transactional
-    public ExpenseDetailResponse updateExpense(UUID expenseId, ExpenseUpdateRequest request) {
+    public ExpenseDetailResponse updateExpense(UUID requester, UUID expenseId, ExpenseUpdateRequest request) {
         // Check if expense exists
         Expense expense = expenseRepository.findById(expenseId)
                 .orElseThrow(() -> new RuntimeException("Expense not found"));
+
+        // Check if requester is part of the group
+        UUID groupId = expense.getGroup().getId();
+        if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, requester)) {
+            log.warn("User {} attempted to maliciously update expense group {}",
+                    Encode.forJava(String.valueOf(requester)), Encode.forJava(String.valueOf(groupId)));
+            throw new IllegalArgumentException("Only group members can update expenses for the group");
+        }
 
         // Block updates for already settled expenses
         if (expense.isSettled()) {
             throw new IllegalArgumentException("Cannot modify settled expense.");
         }
 
-        // Check if user is part of the group
-        UUID groupId = expense.getGroup().getId();
+        // Check if payer is part of the group
         if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, request.getPaidByUserId())) {
             throw new IllegalArgumentException("Payer must be a current group member");
         }
@@ -136,15 +151,22 @@ public class ExpenseService {
 
         // Delete all old splits for this expense, and regenerate new ones
         expenseSplitRepository.deleteByExpenseId(expenseId);
+        expenseSplitRepository.flush();
         List<ExpenseSplit> splits = createExpenseSplits(expense, request.getSplits());
 
         return ExpenseDetailResponse.from(expense, splits);
     }
 
     @Transactional(readOnly = true)
-    public Page<ExpenseResponse> getExpensesByGroup(UUID groupId, Pageable pageable) {
+    public Page<ExpenseResponse> getExpensesByGroup(UUID requester, UUID groupId, Pageable pageable) {
         if (!groupRepository.existsById(groupId)) {
             throw new RuntimeException("Group not found");
+        }
+
+        if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, requester)) {
+            log.warn("User {} attempted to maliciously access expenses for group {}",
+                    Encode.forJava(String.valueOf(requester)), Encode.forJava(String.valueOf(groupId)));
+            throw new IllegalArgumentException("Only group members can access expenses for the group");
         }
 
         Page<Expense> expenses = expenseRepository.findByGroupId(groupId, pageable);
@@ -152,26 +174,40 @@ public class ExpenseService {
         return expenses.map(ExpenseResponse::from);
     }
 
-    @Transactional
-    public void deleteExpense(UUID expenseId) {
+    @Transactional(readOnly = true)
+    public ExpenseDetailResponse getExpenseDetail(UUID requester, UUID expenseId) {
         Expense expense = expenseRepository.findById(expenseId)
                 .orElseThrow(() -> new RuntimeException("Expense not found"));
+
+        UUID groupId = expense.getGroup().getId();
+        if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, requester)) {
+            log.warn("User {} attempted to maliciously access expense details for {}",
+                    Encode.forJava(String.valueOf(requester)), Encode.forJava(String.valueOf(expenseId)));
+            throw new IllegalArgumentException("Only group members can access information for this expense");
+        }
+
+        List<ExpenseSplit> splits = expenseSplitRepository.findByExpenseId(expenseId);
+
+        return ExpenseDetailResponse.from(expense, splits);
+    }
+
+    @Transactional
+    public void deleteExpense(UUID requester, UUID expenseId) {
+        Expense expense = expenseRepository.findById(expenseId)
+                .orElseThrow(() -> new RuntimeException("Expense not found"));
+
+        UUID groupId = expense.getGroup().getId();
+        if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, requester)) {
+            log.warn("User {} attempted to maliciously delete expense {}",
+                    Encode.forJava(String.valueOf(requester)), Encode.forJava(String.valueOf(expenseId)));
+            throw new IllegalArgumentException("Only group members can delete this expense");
+        }
 
         if (expense.isSettled()) {
             throw new IllegalArgumentException("Cannot delete settled expense.");
         }
 
         expenseRepository.delete(expense);
-    }
-
-    @Transactional(readOnly = true)
-    public ExpenseDetailResponse getExpenseDetail(UUID expenseId) {
-        Expense expense = expenseRepository.findById(expenseId)
-                .orElseThrow(() -> new RuntimeException("Expense not found"));
-
-        List<ExpenseSplit> splits = expenseSplitRepository.findByExpenseId(expenseId);
-
-        return ExpenseDetailResponse.from(expense, splits);
     }
 
     /**
