@@ -56,4 +56,7 @@ public class Expense {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @Column(name = "is_settled", nullable = false)
+    private boolean isSettled = false;
 }

@@ -1,6 +1,7 @@
 package com.jlgs.howmuchah.dto.response;
 
 import com.jlgs.howmuchah.dto.UserSummary;
+import com.jlgs.howmuchah.entity.ExpenseSplit;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -17,4 +18,13 @@ public class ExpenseSplitResponse {
     private UserSummary user;
     private BigDecimal amountOwed;
     private boolean isSettled;
+
+    public static ExpenseSplitResponse from(ExpenseSplit split) {
+        return new ExpenseSplitResponse(
+                split.getId(),
+                UserSummary.from(split.getUser()),
+                split.getAmountOwed(),
+                split.isSettled()
+        );
+    }
 }

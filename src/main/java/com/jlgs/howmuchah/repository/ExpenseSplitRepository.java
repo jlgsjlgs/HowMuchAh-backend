@@ -16,9 +16,6 @@ public interface ExpenseSplitRepository extends JpaRepository<ExpenseSplit, UUID
     // Delete all splits for an expense (Used when updating expense splits)
     void deleteByExpenseId(UUID expenseId);
 
-    // Check if all splits for an expense is settled (to prevent modification to expense after settling)
-    boolean existsByExpenseIdAndIsSettledTrue(UUID expenseId);
-
     // Check if user has any expenses splits
     boolean existsByUserId(UUID userId);
 }
