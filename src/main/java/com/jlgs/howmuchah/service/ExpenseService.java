@@ -215,6 +215,10 @@ public class ExpenseService {
      */
 
     private void validateSplitAmounts(BigDecimal totalAmount, List<ExpenseSplitDto> splits) {
+        if (splits.isEmpty()) {
+            throw new IllegalArgumentException("Expense must have at least one split");
+        }
+
         BigDecimal splitSum = splits.stream()
                 .map(ExpenseSplitDto::getAmountOwed)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -227,10 +231,6 @@ public class ExpenseService {
                     String.format("Split amounts (%.2f) must equal total amount (%.2f)",
                             splitSum, totalAmount)
             );
-        }
-
-        if (splits.isEmpty()) {
-            throw new IllegalArgumentException("Expense must have at least one split");
         }
     }
 
