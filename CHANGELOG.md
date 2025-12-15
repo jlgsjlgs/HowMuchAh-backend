@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 15-12-2025
+
+### Added
+- Expense tracking features (CRUD)
+- Unit tests for expense tracking (CRUD) features
+- Settlement entity and repository classes
+
+### Changes
+- Updated `GlobalExceptionHandler` to catch database errors
+
 ## [0.3.0] - 14-12-2025
 
 ### Added
