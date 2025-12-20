@@ -34,5 +34,6 @@ public class ExpenseSplit {
     private BigDecimal amountOwed;
 
     @Column(name = "is_settled", nullable = false)
+    @Builder.Default
     private boolean isSettled = false;
 }
