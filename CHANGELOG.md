@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 20-12-2025
+
+### Changes
+- Upgraded from Spring Boot 3.5.6 to 3.5.9
+- Added `@Builder.Default` annotation to Entity classes that contained default values for some fields
+
 ## [0.4.0] - 15-12-2025
 
 ### Added

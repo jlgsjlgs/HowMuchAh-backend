@@ -37,6 +37,7 @@ public class Expense {
     private BigDecimal totalAmount;
 
     @Column(name = "currency", nullable = false)
+    @Builder.Default
     private String currency = "SGD";
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -58,5 +59,6 @@ public class Expense {
     private LocalDateTime updatedAt;
 
     @Column(name = "is_settled", nullable = false)
+    @Builder.Default
     private boolean isSettled = false;
 }
