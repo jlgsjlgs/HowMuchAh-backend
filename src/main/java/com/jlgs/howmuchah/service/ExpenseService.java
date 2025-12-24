@@ -96,67 +96,6 @@ public class ExpenseService {
         return ExpenseDetailResponse.from(expense, splits);
     }
 
-    @Transactional
-    public ExpenseDetailResponse updateExpense(UUID requester, UUID expenseId, ExpenseUpdateRequest request) {
-        // Check if expense exists
-        Expense expense = expenseRepository.findById(expenseId)
-                .orElseThrow(() -> new RuntimeException("Expense not found"));
-
-        // Check if requester is part of the group
-        UUID groupId = expense.getGroup().getId();
-        if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, requester)) {
-            log.warn("User {} attempted to maliciously update expense group {}",
-                    Encode.forJava(String.valueOf(requester)), Encode.forJava(String.valueOf(groupId)));
-            throw new IllegalArgumentException("Only group members can update expenses for the group");
-        }
-
-        // Block updates for already settled expenses
-        if (expense.isSettled()) {
-            throw new IllegalArgumentException("Cannot modify settled expense.");
-        }
-
-        // Check if payer is part of the group
-        if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, request.getPaidByUserId())) {
-            throw new IllegalArgumentException("Payer must be a current group member");
-        }
-
-        // Check if all participants are group members
-        Set<UUID> splitUserIds = request.getSplits().stream()
-                .map(ExpenseSplitDto::getUserId)
-                .collect(Collectors.toSet());
-
-        Set<UUID> memberIds = groupMemberRepository.findByGroupId(groupId)
-                .stream()
-                .map(gm -> gm.getUser().getId())
-                .collect(Collectors.toSet());
-
-        if (!memberIds.containsAll(splitUserIds)) {
-            throw new IllegalArgumentException("All expense participants must be current group members");
-        }
-
-        // Ensure split adds up to expense total
-        validateSplitAmounts(request.getTotalAmount(), request.getSplits());
-
-        User paidBy = userRepository.findById(request.getPaidByUserId())
-                .orElseThrow(() -> new RuntimeException("Payer user not found"));
-
-        expense.setDescription(request.getDescription());
-        expense.setTotalAmount(request.getTotalAmount());
-        expense.setCurrency(request.getCurrency());
-        expense.setPaidBy(paidBy);
-        expense.setCategory(request.getCategory());
-        expense.setExpenseDate(request.getExpenseDate());
-
-        expense = expenseRepository.save(expense);
-
-        // Delete all old splits for this expense, and regenerate new ones
-        expenseSplitRepository.deleteByExpenseId(expenseId);
-        expenseSplitRepository.flush();
-        List<ExpenseSplit> splits = createExpenseSplits(expense, request.getSplits());
-
-        return ExpenseDetailResponse.from(expense, splits);
-    }
-
     @Transactional(readOnly = true)
     public Page<ExpenseResponse> getExpensesByGroup(UUID requester, UUID groupId, Pageable pageable) {
         if (!groupRepository.existsById(groupId)) {
