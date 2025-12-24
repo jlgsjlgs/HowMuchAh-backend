@@ -46,21 +46,6 @@ public class ExpenseController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PutMapping("/{expenseId}")
-    public ResponseEntity<ExpenseDetailResponse> updateExpense(
-            @AuthenticationPrincipal Jwt jwt,
-            @PathVariable UUID expenseId,
-            @Valid @RequestBody ExpenseUpdateRequest request) {
-
-        UUID userId = jwtUtil.extractUserId(jwt);
-        log.info("User {} updating expense: {}", Encode.forJava(jwtUtil.extractEmail(jwt)), expenseId);
-
-        ExpenseDetailResponse response = expenseService.updateExpense(userId, expenseId, request);
-        log.info("User {} successfully updated expense: {}", Encode.forJava(jwtUtil.extractEmail(jwt)), expenseId);
-
-        return ResponseEntity.ok(response);
-    }
-
     @GetMapping
     public ResponseEntity<Page<ExpenseResponse>> getExpensesByGroup(
             @AuthenticationPrincipal Jwt jwt,

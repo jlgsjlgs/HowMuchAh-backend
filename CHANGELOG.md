@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 24-12-2025
+
+### Changes
+- Deprecated expense update feature
+- Removed expense update unit tests
+
 ## [0.4.1] - 20-12-2025
 
 ### Changes
