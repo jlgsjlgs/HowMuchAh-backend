@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -62,7 +63,6 @@ class SettlementControllerTest {
         groupId = UUID.randomUUID();
         email = "test@example.com";
 
-        // Mock JwtUtil to return test values
         when(jwtUtil.extractUserId(any(Jwt.class))).thenReturn(userId);
         when(jwtUtil.extractEmail(any(Jwt.class))).thenReturn(email);
     }
@@ -85,7 +85,7 @@ class SettlementControllerTest {
                 2
         );
 
-        when(settlementService.getSettlementHistory(groupId))
+        when(settlementService.getSettlementHistory(eq(userId), eq(groupId)))
                 .thenReturn(List.of(summary1, summary2));
 
         // Act & Assert
@@ -98,14 +98,14 @@ class SettlementControllerTest {
                 .andExpect(jsonPath("$[0].transactionCount").value(3))
                 .andExpect(jsonPath("$[1].transactionCount").value(2));
 
-        verify(settlementService, times(1)).getSettlementHistory(groupId);
+        verify(settlementService, times(1)).getSettlementHistory(userId, groupId);
     }
 
     @Test
     @DisplayName("GET /api/settlements/{groupId}/history - Should return empty list when no settlements")
     void getSettlementHistory_WhenNoSettlements_ShouldReturnEmptyList() throws Exception {
         // Arrange
-        when(settlementService.getSettlementHistory(groupId))
+        when(settlementService.getSettlementHistory(eq(userId), eq(groupId)))
                 .thenReturn(List.of());
 
         // Act & Assert
@@ -115,22 +115,37 @@ class SettlementControllerTest {
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(0));
 
-        verify(settlementService, times(1)).getSettlementHistory(groupId);
+        verify(settlementService, times(1)).getSettlementHistory(userId, groupId);
     }
 
     @Test
     @DisplayName("GET /api/settlements/{groupId}/history - Should return 400 when group not found")
     void getSettlementHistory_WhenGroupNotFound_ShouldReturn400() throws Exception {
         // Arrange
-        when(settlementService.getSettlementHistory(groupId))
-                .thenThrow(new IllegalArgumentException("Group not found"));
+        when(settlementService.getSettlementHistory(eq(userId), eq(groupId)))
+                .thenThrow(new RuntimeException("Group not found"));
+
+        // Act & Assert
+        mockMvc.perform(get("/api/settlements/{groupId}/history", groupId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
+                .andExpect(status().isInternalServerError());
+
+        verify(settlementService, times(1)).getSettlementHistory(userId, groupId);
+    }
+
+    @Test
+    @DisplayName("GET /api/settlements/{groupId}/history - Should return 400 when user is not a member")
+    void getSettlementHistory_WhenUserNotMember_ShouldReturn400() throws Exception {
+        // Arrange
+        when(settlementService.getSettlementHistory(eq(userId), eq(groupId)))
+                .thenThrow(new IllegalArgumentException("Only group members can view the settlement history"));
 
         // Act & Assert
         mockMvc.perform(get("/api/settlements/{groupId}/history", groupId)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
                 .andExpect(status().isBadRequest());
 
-        verify(settlementService, times(1)).getSettlementHistory(groupId);
+        verify(settlementService, times(1)).getSettlementHistory(userId, groupId);
     }
 
     // ==================== getSettlementDetail Tests ====================
@@ -157,7 +172,7 @@ class SettlementControllerTest {
                 List.of(transaction)
         );
 
-        when(settlementService.getSettlementDetail(settlementGroupId))
+        when(settlementService.getSettlementDetail(eq(userId), eq(settlementGroupId)))
                 .thenReturn(detail);
 
         // Act & Assert
@@ -171,7 +186,7 @@ class SettlementControllerTest {
                 .andExpect(jsonPath("$.transactions[0].amount").value(50.00))
                 .andExpect(jsonPath("$.transactions[0].currency").value("SGD"));
 
-        verify(settlementService, times(1)).getSettlementDetail(settlementGroupId);
+        verify(settlementService, times(1)).getSettlementDetail(userId, settlementGroupId);
     }
 
     @Test
@@ -183,10 +198,10 @@ class SettlementControllerTest {
         SettlementDetailResponse detail = new SettlementDetailResponse(
                 settlementGroupId,
                 LocalDateTime.now(),
-                List.of() // Empty transactions
+                List.of()
         );
 
-        when(settlementService.getSettlementDetail(settlementGroupId))
+        when(settlementService.getSettlementDetail(eq(userId), eq(settlementGroupId)))
                 .thenReturn(detail);
 
         // Act & Assert
@@ -196,7 +211,7 @@ class SettlementControllerTest {
                 .andExpect(jsonPath("$.transactions").isArray())
                 .andExpect(jsonPath("$.transactions.length()").value(0));
 
-        verify(settlementService, times(1)).getSettlementDetail(settlementGroupId);
+        verify(settlementService, times(1)).getSettlementDetail(userId, settlementGroupId);
     }
 
     @Test
@@ -204,7 +219,7 @@ class SettlementControllerTest {
     void getSettlementDetail_WhenNotFound_ShouldReturn400() throws Exception {
         // Arrange
         UUID settlementGroupId = UUID.randomUUID();
-        when(settlementService.getSettlementDetail(settlementGroupId))
+        when(settlementService.getSettlementDetail(eq(userId), eq(settlementGroupId)))
                 .thenThrow(new IllegalArgumentException("Settlement not found"));
 
         // Act & Assert
@@ -212,7 +227,23 @@ class SettlementControllerTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
                 .andExpect(status().isBadRequest());
 
-        verify(settlementService, times(1)).getSettlementDetail(settlementGroupId);
+        verify(settlementService, times(1)).getSettlementDetail(userId, settlementGroupId);
+    }
+
+    @Test
+    @DisplayName("GET /api/settlements/{settlementGroupId} - Should return 400 when user is not a member")
+    void getSettlementDetail_WhenUserNotMember_ShouldReturn400() throws Exception {
+        // Arrange
+        UUID settlementGroupId = UUID.randomUUID();
+        when(settlementService.getSettlementDetail(eq(userId), eq(settlementGroupId)))
+                .thenThrow(new IllegalArgumentException("Only group members can view the settlement details"));
+
+        // Act & Assert
+        mockMvc.perform(get("/api/settlements/{settlementGroupId}", settlementGroupId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
+                .andExpect(status().isBadRequest());
+
+        verify(settlementService, times(1)).getSettlementDetail(userId, settlementGroupId);
     }
 
     // ==================== executeSettlement Tests ====================
@@ -239,7 +270,7 @@ class SettlementControllerTest {
                 List.of(transaction)
         );
 
-        when(settlementService.executeSettlement(groupId))
+        when(settlementService.executeSettlement(eq(userId), eq(groupId)))
                 .thenReturn(result);
 
         // Act & Assert
@@ -253,14 +284,14 @@ class SettlementControllerTest {
                 .andExpect(jsonPath("$.transactions[0].payee.name").value("Alice"))
                 .andExpect(jsonPath("$.transactions[0].amount").value(75.00));
 
-        verify(settlementService, times(1)).executeSettlement(groupId);
+        verify(settlementService, times(1)).executeSettlement(userId, groupId);
     }
 
     @Test
     @DisplayName("POST /api/settlements/{groupId}/settle - Should return 400 when no unsettled expenses")
     void executeSettlement_WhenNoExpenses_ShouldReturn400() throws Exception {
         // Arrange
-        when(settlementService.executeSettlement(groupId))
+        when(settlementService.executeSettlement(eq(userId), eq(groupId)))
                 .thenThrow(new IllegalArgumentException("No unsettled expenses to settle"));
 
         // Act & Assert
@@ -268,14 +299,14 @@ class SettlementControllerTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
                 .andExpect(status().isBadRequest());
 
-        verify(settlementService, times(1)).executeSettlement(groupId);
+        verify(settlementService, times(1)).executeSettlement(userId, groupId);
     }
 
     @Test
     @DisplayName("POST /api/settlements/{groupId}/settle - Should return 400 when group not found")
     void executeSettlement_WhenGroupNotFound_ShouldReturn400() throws Exception {
         // Arrange
-        when(settlementService.executeSettlement(groupId))
+        when(settlementService.executeSettlement(eq(userId), eq(groupId)))
                 .thenThrow(new IllegalArgumentException("Group not found"));
 
         // Act & Assert
@@ -283,7 +314,7 @@ class SettlementControllerTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
                 .andExpect(status().isBadRequest());
 
-        verify(settlementService, times(1)).executeSettlement(groupId);
+        verify(settlementService, times(1)).executeSettlement(userId, groupId);
     }
 
     @Test
@@ -295,10 +326,10 @@ class SettlementControllerTest {
         SettlementDetailResponse result = new SettlementDetailResponse(
                 settlementGroupId,
                 LocalDateTime.now(),
-                List.of() // Perfect wash - no transactions needed
+                List.of()
         );
 
-        when(settlementService.executeSettlement(groupId))
+        when(settlementService.executeSettlement(eq(userId), eq(groupId)))
                 .thenReturn(result);
 
         // Act & Assert
@@ -308,6 +339,21 @@ class SettlementControllerTest {
                 .andExpect(jsonPath("$.transactions").isArray())
                 .andExpect(jsonPath("$.transactions.length()").value(0));
 
-        verify(settlementService, times(1)).executeSettlement(groupId);
+        verify(settlementService, times(1)).executeSettlement(userId, groupId);
+    }
+
+    @Test
+    @DisplayName("POST /api/settlements/{groupId}/settle - Should return 400 when user is not a member")
+    void executeSettlement_WhenUserNotMember_ShouldReturn400() throws Exception {
+        // Arrange
+        when(settlementService.executeSettlement(eq(userId), eq(groupId)))
+                .thenThrow(new IllegalArgumentException("Only group members can settle expenses"));
+
+        // Act & Assert
+        mockMvc.perform(post("/api/settlements/{groupId}/settle", groupId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
+                .andExpect(status().isBadRequest());
+
+        verify(settlementService, times(1)).executeSettlement(userId, groupId);
     }
 }

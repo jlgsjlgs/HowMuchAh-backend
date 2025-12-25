@@ -6,6 +6,7 @@ import com.jlgs.howmuchah.entity.*;
 import com.jlgs.howmuchah.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.owasp.encoder.Encode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,12 +27,19 @@ public class SettlementService {
     private final ExpenseRepository expenseRepository;
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
+    private final GroupMemberRepository groupMemberRepository;
 
     @Transactional(readOnly = true)
-    public List<SettlementSummaryResponse> getSettlementHistory(UUID groupId) {
+    public List<SettlementSummaryResponse> getSettlementHistory(UUID requester, UUID groupId) {
         // Validate group exists
-        if (!groupRepository.existsById(groupId)) {
-            throw new IllegalArgumentException("Group not found");
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new RuntimeException("Group not found"));
+
+        // Check if requester is part of the group
+        if (!groupMemberRepository.existsByGroupIdAndUserId(group.getId(), requester)) {
+            log.warn("User {} attempted to maliciously read the settlement history for group {}",
+                    Encode.forJava(String.valueOf(requester)), Encode.forJava(String.valueOf(group.getId())));
+            throw new IllegalArgumentException("Only group members can view the settlement history");
         }
 
         List<SettlementGroup> settlementGroups =
@@ -43,9 +51,18 @@ public class SettlementService {
     }
 
     @Transactional(readOnly = true)
-    public SettlementDetailResponse getSettlementDetail(UUID settlementGroupId) {
+    public SettlementDetailResponse getSettlementDetail(UUID requester, UUID settlementGroupId) {
         SettlementGroup settlementGroup = settlementGroupRepository.findById(settlementGroupId)
                 .orElseThrow(() -> new IllegalArgumentException("Settlement not found"));
+
+        UUID groupId = settlementGroup.getGroup().getId();
+
+        // Check if requester is part of the group
+        if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, requester)) {
+            log.warn("User {} attempted to maliciously access settlement details for {}",
+                    Encode.forJava(String.valueOf(requester)), Encode.forJava(String.valueOf(settlementGroupId)));
+            throw new IllegalArgumentException("Only group members can view the settlement details");
+        }
 
         return SettlementDetailResponse.from(settlementGroup);
     }
@@ -59,10 +76,17 @@ public class SettlementService {
      * 5. Mark expenses as settled
      */
     @Transactional
-    public SettlementDetailResponse executeSettlement(UUID groupId) {
+    public SettlementDetailResponse executeSettlement(UUID requester, UUID groupId) {
         // 1. Validate group exists - Uses a lock to prevent race condition (two people settle at once)
         Group group = groupRepository.findByIdWithLock(groupId)
                 .orElseThrow(() -> new IllegalArgumentException("Group not found"));
+
+        // Check if requester is part of the group
+        if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, requester)) {
+            log.warn("User {} attempted to maliciously settle expenses for group {}",
+                    Encode.forJava(String.valueOf(requester)), Encode.forJava(String.valueOf(groupId)));
+            throw new IllegalArgumentException("Only group members can settle expenses");
+        }
 
         // 2. Get all unsettled expense splits for this group
         List<ExpenseSplit> unsettledSplits = expenseSplitRepository.findUnsettledByGroupId(groupId);
