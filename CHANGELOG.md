@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 26-12-2025
+
+### Added
+- WebSocketService via Spring WebSocket + STOMP 
+
+### Changes
+- Group invitations now send a message via WebSocket to the respective client
+
 ## [0.6.0] - 25-12-2025
 
 ### Added
