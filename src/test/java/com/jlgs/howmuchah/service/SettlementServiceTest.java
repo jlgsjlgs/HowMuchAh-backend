@@ -388,6 +388,53 @@ class SettlementServiceTest {
         verify(settlementGroupRepository, never()).findByGroupIdOrderBySettledAtDesc(any());
     }
 
+    @Test
+    @DisplayName("getSettlementHistory - Should return correct transaction count per settlement")
+    void getSettlementHistory_ShouldReturnCorrectTransactionCount() {
+        // Arrange
+        Settlement s1 = Settlement.builder()
+                .id(UUID.randomUUID())
+                .payer(userA)
+                .payee(userB)
+                .amount(new BigDecimal("50.00"))
+                .currency("USD")
+                .build();
+
+        Settlement s2 = Settlement.builder()
+                .id(UUID.randomUUID())
+                .payer(userC)
+                .payee(userA)
+                .amount(new BigDecimal("30.00"))
+                .currency("USD")
+                .build();
+
+        SettlementGroup sg1 = SettlementGroup.builder()
+                .id(UUID.randomUUID())
+                .group(testGroup)
+                .settlements(new ArrayList<>(List.of(s1, s2)))  // 2 settlements
+                .build();
+
+        SettlementGroup sg2 = SettlementGroup.builder()
+                .id(UUID.randomUUID())
+                .group(testGroup)
+                .settlements(new ArrayList<>())  // 0 settlements
+                .build();
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(testGroup));
+        when(groupMemberRepository.existsByGroupIdAndUserId(groupId, requesterId)).thenReturn(true);
+        when(settlementGroupRepository.findByGroupIdOrderBySettledAtDesc(groupId))
+                .thenReturn(List.of(sg1, sg2));
+
+        // Act
+        List<SettlementSummaryResponse> result = settlementService.getSettlementHistory(requesterId, groupId);
+
+        // Assert
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).getTransactionCount()).isEqualTo(2);  // sg1 has 2 settlements
+        assertThat(result.get(1).getTransactionCount()).isEqualTo(0);  // sg2 has 0 settlements
+        verify(settlementGroupRepository).findByGroupIdOrderBySettledAtDesc(groupId);
+    }
+
     // ==================== getSettlementDetail Tests ====================
 
     @Test

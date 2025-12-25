@@ -14,11 +14,9 @@ import java.util.UUID;
 public interface SettlementGroupRepository extends JpaRepository<SettlementGroup, UUID> {
 
     // Find all settlement events for a group, ordered by most recent first
-    List<SettlementGroup> findByGroupIdOrderBySettledAtDesc(UUID groupId);
-
-    // Eagerly fetch settlements - Used when returning JSON at the end of settlement workflow
     @Query("SELECT sg FROM SettlementGroup sg " +
             "LEFT JOIN FETCH sg.settlements " +
-            "WHERE sg.id = :id")
-    Optional<SettlementGroup> findByIdWithSettlements(@Param("id") UUID id);
+            "WHERE sg.group.id = :groupId " +
+            "ORDER BY sg.settledAt DESC")
+    List<SettlementGroup> findByGroupIdOrderBySettledAtDesc(@Param("groupId") UUID groupId);
 }
