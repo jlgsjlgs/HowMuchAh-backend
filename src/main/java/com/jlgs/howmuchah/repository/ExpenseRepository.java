@@ -22,4 +22,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
     @Query("UPDATE Expense e SET e.isSettled = true " +
             "WHERE e.group.id = :groupId AND e.isSettled = false")
     void markAllAsSettledByGroupId(@Param("groupId") UUID groupId);
+
+    // Get number of unsettled expenses for a group
+    Long countByGroupIdAndIsSettled(UUID groupId, boolean isSettled);
 }

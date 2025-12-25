@@ -473,6 +473,55 @@ class ExpenseServiceTest {
         verify(expenseSplitRepository, never()).findByExpenseId(any());
     }
 
+    // ==================== getUnsettledExpensesCount Tests ====================
+
+    @Test
+    @DisplayName("getUnsettledExpensesCount - Should return count when user is group member")
+    void getUnsettledExpensesCount_WhenUserIsGroupMember_ShouldReturnCount() {
+        // Arrange
+        when(groupMemberRepository.existsByGroupIdAndUserId(groupId, userId1)).thenReturn(true);
+        when(expenseRepository.countByGroupIdAndIsSettled(groupId, false)).thenReturn(5L);
+
+        // Act
+        Long count = expenseService.getUnsettledExpensesCount(userId1, groupId);
+
+        // Assert
+        assertThat(count).isEqualTo(5);
+        verify(groupMemberRepository, times(1)).existsByGroupIdAndUserId(groupId, userId1);
+        verify(expenseRepository, times(1)).countByGroupIdAndIsSettled(groupId, false);
+    }
+
+    @Test
+    @DisplayName("getUnsettledExpensesCount - Should return zero when no unsettled expenses")
+    void getUnsettledExpensesCount_WhenNoUnsettledExpenses_ShouldReturnZero() {
+        // Arrange
+        when(groupMemberRepository.existsByGroupIdAndUserId(groupId, userId1)).thenReturn(true);
+        when(expenseRepository.countByGroupIdAndIsSettled(groupId, false)).thenReturn(0L);
+
+        // Act
+        Long count = expenseService.getUnsettledExpensesCount(userId1, groupId);
+
+        // Assert
+        assertThat(count).isEqualTo(0);
+        verify(groupMemberRepository, times(1)).existsByGroupIdAndUserId(groupId, userId1);
+        verify(expenseRepository, times(1)).countByGroupIdAndIsSettled(groupId, false);
+    }
+
+    @Test
+    @DisplayName("getUnsettledExpensesCount - Should throw exception when user not group member")
+    void getUnsettledExpensesCount_WhenUserNotGroupMember_ShouldThrowException() {
+        // Arrange
+        when(groupMemberRepository.existsByGroupIdAndUserId(groupId, userId1)).thenReturn(false);
+
+        // Act & Assert
+        assertThatThrownBy(() -> expenseService.getUnsettledExpensesCount(userId1, groupId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Only group members can access this information");
+
+        verify(groupMemberRepository, times(1)).existsByGroupIdAndUserId(groupId, userId1);
+        verify(expenseRepository, never()).countByGroupIdAndIsSettled(any(), anyBoolean());
+    }
+
     // ==================== deleteExpense Tests ====================
 
     @Test

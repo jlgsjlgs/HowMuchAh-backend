@@ -84,6 +84,18 @@ public class ExpenseController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/{groupId}/unsettled")
+    public ResponseEntity<Long> getUnsettledExpensesCount(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID groupId) {
+
+        UUID userId = jwtUtil.extractUserId(jwt);
+        log.info("User {} fetching number of unsettled expenses for group: {}", Encode.forJava(jwtUtil.extractEmail(jwt)), groupId);
+
+        Long count = expenseService.getUnsettledExpensesCount(userId, groupId);
+        return ResponseEntity.ok(count);
+    }
+
     @DeleteMapping("/{expenseId}")
     public ResponseEntity<Void> deleteExpense(
             @AuthenticationPrincipal Jwt jwt,
