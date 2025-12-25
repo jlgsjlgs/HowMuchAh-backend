@@ -45,6 +45,9 @@ class InvitationServiceTest {
     @Mock
     private GroupMemberRepository groupMemberRepository;
 
+    @Mock
+    private NotificationService notificationService;
+
     @InjectMocks
     private InvitationService invitationService;
 
@@ -196,6 +199,48 @@ class InvitationServiceTest {
                 .hasMessage("An invitation to this email already exists for this group");
 
         verify(invitationRepository, never()).save(any(Invitation.class));
+    }
+
+    @Test
+    @DisplayName("sendInvitation - Should send WebSocket notification when invited user exists")
+    void sendInvitation_WhenInvitedUserExists_ShouldSendNotification() {
+        // Arrange
+        String existingUserEmail = "existing@example.com";
+        InvitationRequest request = new InvitationRequest(existingUserEmail);
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(owner));
+        when(invitationRepository.findByGroupId(groupId)).thenReturn(List.of());
+        when(invitationRepository.save(any(Invitation.class))).thenReturn(invitation);
+        when(userRepository.findByEmail(existingUserEmail)).thenReturn(Optional.of(invitedUser));
+
+        // Act
+        invitationService.sendInvitation(groupId, userId, request);
+
+        // Assert
+        verify(userRepository, times(1)).findByEmail(existingUserEmail);
+        verify(notificationService, times(1)).notifyUserOfNewInvitation(invitedUser.getId());
+    }
+
+    @Test
+    @DisplayName("sendInvitation - Should not send WebSocket notification when invited user doesn't exist")
+    void sendInvitation_WhenInvitedUserDoesNotExist_ShouldNotSendNotification() {
+        // Arrange
+        String nonExistentEmail = "nonexistent@example.com";
+        InvitationRequest request = new InvitationRequest(nonExistentEmail);
+
+        when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(owner));
+        when(invitationRepository.findByGroupId(groupId)).thenReturn(List.of());
+        when(invitationRepository.save(any(Invitation.class))).thenReturn(invitation);
+        when(userRepository.findByEmail(nonExistentEmail)).thenReturn(Optional.empty());
+
+        // Act
+        invitationService.sendInvitation(groupId, userId, request);
+
+        // Assert
+        verify(userRepository, times(1)).findByEmail(nonExistentEmail);
+        verify(notificationService, never()).notifyUserOfNewInvitation(any());
     }
 
     // ==================== getAllInvitationsForGroup Tests ====================

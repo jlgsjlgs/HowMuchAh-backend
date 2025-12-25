@@ -28,6 +28,7 @@ public class InvitationService {
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final NotificationService notificationService;
 
     @Transactional
     public Invitation sendInvitation(UUID groupId, UUID userId, InvitationRequest request) {
@@ -66,7 +67,16 @@ public class InvitationService {
                 .status(InvitationStatus.PENDING)
                 .build();
 
-        return invitationRepository.save(invitation);
+        Invitation savedInvitation = invitationRepository.save(invitation);
+
+        // Send WebSocket notification if the invited user exists
+        userRepository.findByEmail(request.getInvitedEmail())
+                .ifPresent(invitedUser -> {
+                    notificationService.notifyUserOfNewInvitation(invitedUser.getId());
+                    log.info("WebSocket notification sent to user {}", invitedUser.getId());
+                });
+
+        return savedInvitation;
     }
 
     @Transactional(readOnly = true)
