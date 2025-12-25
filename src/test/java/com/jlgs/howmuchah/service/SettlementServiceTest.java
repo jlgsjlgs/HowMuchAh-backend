@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -271,6 +272,44 @@ class SettlementServiceTest {
                 .hasMessage("Only group members can settle expenses");
 
         verify(expenseSplitRepository, never()).findUnsettledByGroupId(any());
+    }
+
+    @Test
+    @DisplayName("executeSettlement - Should handle payer not in split (A pays, B & C split)")
+    void executeSettlement_PayerNotInSplit_ShouldSettleCorrectly() {
+        // Arrange
+        // Scenario: A pays $100 for B & C (A didn't participate, just paid)
+        // Split: B owes $50, C owes $50
+        // Result: B pays A $50, C pays A $50
+
+        Expense expense = createExpense(userA, "100.00");
+        ExpenseSplit splitB = createSplit(expense, userB, "50.00");
+        ExpenseSplit splitC = createSplit(expense, userC, "50.00");
+
+        List<ExpenseSplit> allSplits = List.of(splitB, splitC);
+
+        setupMocksForSettlement(allSplits);
+
+        // Act
+        settlementService.executeSettlement(requesterId, groupId);
+
+        // Assert
+        verify(settlementRepository).saveAll(settlementListCaptor.capture());
+        List<Settlement> results = settlementListCaptor.getValue();
+
+        assertThat(results).hasSize(2);
+
+        // Verify both B and C pay A
+        assertThat(results)
+                .allMatch(s -> s.getPayee().getId().equals(userA.getId()))
+                .allMatch(s -> s.getAmount().compareTo(new BigDecimal("50.00")) == 0);
+
+        // Verify B pays and C pays
+        Set<UUID> payers = results.stream()
+                .map(s -> s.getPayer().getId())
+                .collect(Collectors.toSet());
+
+        assertThat(payers).containsExactlyInAnyOrder(userB.getId(), userC.getId());
     }
 
     // ==================== getSettlementHistory Tests ====================

@@ -132,15 +132,12 @@ public class SettlementService {
         // 6. Save all settlement transactions
         if (!allSettlements.isEmpty()) {
             settlementRepository.saveAll(allSettlements);
+            settlementGroup.setSettlements(allSettlements);
         }
 
         // 7. Mark all expense splits and expenses as settled
         expenseSplitRepository.markAllAsSettledByGroupId(groupId);
         expenseRepository.markAllAsSettledByGroupId(groupId);
-
-        // 8. Reload settlement group with transactions and return
-        settlementGroup = settlementGroupRepository.findById(settlementGroup.getId())
-                .orElseThrow(() -> new IllegalArgumentException("Settlement not found"));
 
         return SettlementDetailResponse.from(settlementGroup);
     }
