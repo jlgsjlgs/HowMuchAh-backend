@@ -130,6 +130,18 @@ public class ExpenseService {
         return ExpenseDetailResponse.from(expense, splits);
     }
 
+    @Transactional(readOnly = true)
+    public Long getUnsettledExpensesCount(UUID requester, UUID groupId) {
+        // Verify user is member of group
+        if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, requester)) {
+            log.warn("User {} attempted to maliciously access unsettled expense counts for group {}",
+                    Encode.forJava(String.valueOf(requester)), Encode.forJava(String.valueOf(groupId)));
+            throw new IllegalArgumentException("Only group members can access this information");
+        }
+
+        return expenseRepository.countByGroupIdAndIsSettled(groupId, false);
+    }
+
     @Transactional
     public void deleteExpense(UUID requester, UUID expenseId) {
         Expense expense = expenseRepository.findById(expenseId)

@@ -385,6 +385,53 @@ class ExpenseControllerTest {
         verify(expenseService, times(1)).getExpenseDetail(userId, expenseId);
     }
 
+    // ==================== getUnsettledExpensesCount Tests ====================
+
+    @Test
+    @DisplayName("GET /api/expenses/{groupId}/unsettled - Should return count when user is group member")
+    void getUnsettledExpensesCount_WhenUserIsGroupMember_ShouldReturn200() throws Exception {
+        // Arrange
+        when(expenseService.getUnsettledExpensesCount(userId, groupId)).thenReturn(5L);
+
+        // Act & Assert
+        mockMvc.perform(get("/api/expenses/{groupId}/unsettled", groupId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(content().string("5"));
+
+        verify(expenseService, times(1)).getUnsettledExpensesCount(userId, groupId);
+    }
+
+    @Test
+    @DisplayName("GET /api/expenses/{groupId}/unsettled - Should return zero when no unsettled expenses")
+    void getUnsettledExpensesCount_WhenNoUnsettledExpenses_ShouldReturnZero() throws Exception {
+        // Arrange
+        when(expenseService.getUnsettledExpensesCount(userId, groupId)).thenReturn(0L);
+
+        // Act & Assert
+        mockMvc.perform(get("/api/expenses/{groupId}/unsettled", groupId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(content().string("0"));
+
+        verify(expenseService, times(1)).getUnsettledExpensesCount(userId, groupId);
+    }
+
+    @Test
+    @DisplayName("GET /api/expenses/{groupId}/unsettled - Should return 400 when user not group member")
+    void getUnsettledExpensesCount_WhenUserNotGroupMember_ShouldReturn400() throws Exception {
+        // Arrange
+        when(expenseService.getUnsettledExpensesCount(userId, groupId))
+                .thenThrow(new IllegalArgumentException("User is not a member of this group"));
+
+        // Act & Assert
+        mockMvc.perform(get("/api/expenses/{groupId}/unsettled", groupId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + TestSecurityConfig.TEST_TOKEN))
+                .andExpect(status().isBadRequest());
+
+        verify(expenseService, times(1)).getUnsettledExpensesCount(userId, groupId);
+    }
+
     // ==================== deleteExpense Tests ====================
 
     @Test

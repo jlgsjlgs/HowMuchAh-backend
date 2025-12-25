@@ -1,7 +1,9 @@
 package com.jlgs.howmuchah.repository;
 
 import com.jlgs.howmuchah.entity.Group;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -27,4 +29,8 @@ public interface GroupRepository extends JpaRepository<Group, UUID> {
     Optional<Group> findByIdWithOwner(@Param("groupId") UUID groupId);
 
     boolean existsByNameAndOwnerId(String name, UUID ownerId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT g FROM Group g WHERE g.id = :groupId")
+    Optional<Group> findByIdWithLock(@Param("groupId") UUID groupId);
 }

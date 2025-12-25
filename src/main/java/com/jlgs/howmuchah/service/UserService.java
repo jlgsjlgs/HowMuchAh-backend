@@ -36,12 +36,4 @@ public class UserService {
             return userRepository.save(newUser);
         }
     }
-
-    public Optional<User> getUserById(UUID id) {
-        return userRepository.findById(id);
-    }
-
-    public Optional<User> getUserByEmail(String email) {
-        return userRepository.findByEmail(email);
-    }
 }

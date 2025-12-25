@@ -21,6 +21,15 @@ public interface ExpenseSplitRepository extends JpaRepository<ExpenseSplit, UUID
     @Query("DELETE FROM ExpenseSplit es WHERE es.expense.id = :expenseId")
     void deleteByExpenseId(@Param("expenseId") UUID expenseId);
 
-    // Check if user has any expenses splits
-    boolean existsByUserId(UUID userId);
+    // Find all unsettled splits for an expense group
+    @Query("SELECT es FROM ExpenseSplit es " +
+            "JOIN es.expense e " +
+            "WHERE e.group.id = :groupId AND es.isSettled = false")
+    List<ExpenseSplit> findUnsettledByGroupId(@Param("groupId") UUID groupId);
+
+    // Mark all pending expenses as settled
+    @Modifying
+    @Query("UPDATE ExpenseSplit es SET es.isSettled = true " +
+            "WHERE es.expense.group.id = :groupId AND es.isSettled = false")
+    void markAllAsSettledByGroupId(@Param("groupId") UUID groupId);
 }

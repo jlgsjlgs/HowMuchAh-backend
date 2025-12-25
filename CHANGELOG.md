@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 25-12-2025
+
+### Added
+- Settlement feature (Implemented using Greedy variation of debt settlement algorithm)
+- Unit tests for settlement feature
+
+### Changes
+- Removed unused user-related endpoint
+
 ## [0.5.0] - 24-12-2025
 
 ### Changes

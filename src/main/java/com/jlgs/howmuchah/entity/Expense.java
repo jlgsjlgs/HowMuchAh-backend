@@ -61,4 +61,29 @@ public class Expense {
     @Column(name = "is_settled", nullable = false)
     @Builder.Default
     private boolean isSettled = false;
+
+    /**
+     * These two overrides are needed because we use Map<Expense, List<ExpenseSplit>>
+     * during settlement calculation.
+     *
+     * Without them, Hibernate may create multiple Expense proxy objects in memory for
+     * the same database row. Java's default equals() compares by memory address, so
+     * these different objects would be treated as different map keys.
+     *
+     * This override tells Java to compare Expense objects by their ID (business identity)
+     * instead of memory address, ensuring all splits for the same expense are grouped
+     * together correctly.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Expense)) return false;
+        Expense expense = (Expense) o;
+        return id != null && id.equals(expense.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }
