@@ -37,6 +37,7 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/actuator/health").permitAll() // Expose health
                         .anyRequest().authenticated()  // All endpoints require JWT to access
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
