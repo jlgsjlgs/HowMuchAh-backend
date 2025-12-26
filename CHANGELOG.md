@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - Dockerfile for deployment on Render
+- Database schema file
+
+### Changes
+- Updated README
 
 ## [0.7.0] - 26-12-2025
 
