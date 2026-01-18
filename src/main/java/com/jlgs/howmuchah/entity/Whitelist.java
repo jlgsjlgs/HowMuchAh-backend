@@ -2,6 +2,7 @@ package com.jlgs.howmuchah.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -18,6 +19,7 @@ public class Whitelist {
     @Column(name = "email", nullable = false)
     private String email;
 
-    @Column(name = "whitelisted_at")
+    @CreationTimestamp
+    @Column(name = "whitelisted_at", nullable = false, updatable = false)
     private LocalDateTime whitelistedAt;
 }
