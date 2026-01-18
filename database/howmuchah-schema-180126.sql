@@ -92,6 +92,26 @@ CREATE TABLE public.groups (
 
 
 --
+-- Name: invitation_links; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.invitation_links (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    group_id uuid NOT NULL,
+    created_by_user_id uuid NOT NULL,
+    token text DEFAULT (gen_random_uuid())::text NOT NULL,
+    max_uses integer DEFAULT 5 NOT NULL,
+    current_uses integer DEFAULT 0 NOT NULL,
+    expires_at timestamp with time zone DEFAULT (now() + '7 days'::interval) NOT NULL,
+    status text DEFAULT 'ACTIVE'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT invitation_links_current_uses_check CHECK (((current_uses >= 0) AND (current_uses <= max_uses))),
+    CONSTRAINT invitation_links_status_check CHECK ((status = ANY (ARRAY['ACTIVE'::text, 'EXPIRED'::text])))
+);
+
+
+--
 -- Name: invitations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -103,6 +123,7 @@ CREATE TABLE public.invitations (
     status text DEFAULT 'PENDING'::text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone,
+    invitation_link_id uuid,
     CONSTRAINT invitations_status_check CHECK ((status = ANY (ARRAY['PENDING'::text, 'ACCEPTED'::text, 'DECLINED'::text, 'REVOKED'::text])))
 );
 
@@ -194,6 +215,22 @@ ALTER TABLE ONLY public.groups
 
 ALTER TABLE ONLY public.groups
     ADD CONSTRAINT groups_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: invitation_links invitation_links_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.invitation_links
+    ADD CONSTRAINT invitation_links_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: invitation_links invitation_links_token_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.invitation_links
+    ADD CONSTRAINT invitation_links_token_key UNIQUE (token);
 
 
 --
@@ -318,6 +355,41 @@ CREATE INDEX idx_expenses_paid_by_user_id ON public.expenses USING btree (paid_b
 
 
 --
+-- Name: idx_invitation_links_expires_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_invitation_links_expires_at ON public.invitation_links USING btree (expires_at);
+
+
+--
+-- Name: idx_invitation_links_group_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_invitation_links_group_id ON public.invitation_links USING btree (group_id);
+
+
+--
+-- Name: idx_invitation_links_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_invitation_links_status ON public.invitation_links USING btree (status);
+
+
+--
+-- Name: idx_invitation_links_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_invitation_links_token ON public.invitation_links USING btree (token);
+
+
+--
+-- Name: idx_invitations_invitation_link_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_invitations_invitation_link_id ON public.invitations USING btree (invitation_link_id);
+
+
+--
 -- Name: idx_settlement_groups_group_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -416,11 +488,35 @@ ALTER TABLE ONLY public.groups
 
 
 --
+-- Name: invitation_links invitation_links_created_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.invitation_links
+    ADD CONSTRAINT invitation_links_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: invitation_links invitation_links_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.invitation_links
+    ADD CONSTRAINT invitation_links_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE;
+
+
+--
 -- Name: invitations invitations_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.invitations
     ADD CONSTRAINT invitations_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE;
+
+
+--
+-- Name: invitations invitations_invitation_link_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.invitations
+    ADD CONSTRAINT invitations_invitation_link_id_fkey FOREIGN KEY (invitation_link_id) REFERENCES public.invitation_links(id) ON DELETE SET NULL;
 
 
 --
@@ -494,6 +590,12 @@ ALTER TABLE public.group_members ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.groups ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: invitation_links; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.invitation_links ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: invitations; Type: ROW SECURITY; Schema: public; Owner: -

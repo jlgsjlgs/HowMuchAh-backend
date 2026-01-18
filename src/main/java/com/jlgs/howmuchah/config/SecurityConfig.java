@@ -38,6 +38,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll() // Expose health
+                        // Expose public facing invitation link endpoints
+                        .requestMatchers("/api/invitation-links/*/validate").permitAll()
+                        .requestMatchers("/api/invitation-links/claim").permitAll()
                         .anyRequest().authenticated()  // All endpoints require JWT to access
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2

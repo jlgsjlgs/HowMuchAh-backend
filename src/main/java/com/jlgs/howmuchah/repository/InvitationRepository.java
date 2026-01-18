@@ -41,4 +41,7 @@ public interface InvitationRepository extends JpaRepository<Invitation, UUID> {
             @Param("email") String email,
             @Param("status") InvitationStatus status
     );
+
+    // Find invitation by group and email (for duplicate checking)
+    Optional<Invitation> findByGroup_IdAndInvitedEmail(UUID groupId, String email);
 }
