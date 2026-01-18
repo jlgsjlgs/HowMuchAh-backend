@@ -31,17 +31,18 @@ public class InvitationLink {
     @JoinColumn(name = "created_by_user_id", nullable = false)
     private User createdBy;
 
-    @Column(name = "token", nullable = false, updatable = false)
+    @Column(name = "token", nullable = false, insertable = false, updatable = false)
     private String token;
 
-    @Column(name = "max_uses", nullable = false, updatable = false)
-    private Integer maxUses;
+    @Column(name = "max_uses", nullable = false)
+    @Builder.Default
+    private Integer maxUses = 5;
 
     @Column(name = "current_uses", nullable = false)
     @Builder.Default
     private Integer currentUses = 0;
 
-    @Column(name = "expires_at", nullable = false, updatable = false)
+    @Column(name = "expires_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime expiresAt;
 
     @Enumerated(EnumType.STRING)

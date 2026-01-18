@@ -11,6 +11,8 @@ import com.jlgs.howmuchah.enums.InvitationLinkStatus;
 import com.jlgs.howmuchah.enums.InvitationStatus;
 import com.jlgs.howmuchah.exception.InvalidInvitationLinkException;
 import com.jlgs.howmuchah.repository.*;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.owasp.encoder.Encode;
@@ -27,6 +29,9 @@ import java.util.UUID;
 public class InvitationLinkService {
 
     private static final int MAX_LINKS_PER_GROUP_PER_MONTH = 3;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private final InvitationLinkRepository invitationLinkRepository;
     private final InvitationRepository invitationRepository;
@@ -216,7 +221,11 @@ public class InvitationLinkService {
                 .status(InvitationLinkStatus.ACTIVE)
                 .build();
 
-        link = invitationLinkRepository.save(link);
+        link = invitationLinkRepository.saveAndFlush(link);
+
+        // Refresh to get database-generated fields (token, expiresAt)
+        entityManager.refresh(link);
+
         log.info("Generated new invitation link {} for group {}", link.getId(), groupId);
 
         return InvitationLinkResponse.fromInvitationLink(
