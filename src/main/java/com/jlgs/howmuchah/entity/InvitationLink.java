@@ -1,6 +1,6 @@
 package com.jlgs.howmuchah.entity;
 
-import com.jlgs.howmuchah.enums.InvitationStatus;
+import com.jlgs.howmuchah.enums.InvitationLinkStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -10,13 +10,13 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "invitations", schema = "public")
+@Table(name = "invitation_links", schema = "public")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Invitation {
+public class InvitationLink {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -27,17 +27,27 @@ public class Invitation {
     @JoinColumn(name = "group_id", nullable = false)
     private Group group;
 
-    @Column(name = "invited_email", nullable = false)
-    private String invitedEmail;
-
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "invited_by_user_id", nullable = false)
-    private User invitedBy;
+    @JoinColumn(name = "created_by_user_id", nullable = false)
+    private User createdBy;
+
+    @Column(name = "token", nullable = false, updatable = false)
+    private String token;
+
+    @Column(name = "max_uses", nullable = false, updatable = false)
+    private Integer maxUses;
+
+    @Column(name = "current_uses", nullable = false)
+    @Builder.Default
+    private Integer currentUses = 0;
+
+    @Column(name = "expires_at", nullable = false, updatable = false)
+    private LocalDateTime expiresAt;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     @Builder.Default
-    private InvitationStatus status = InvitationStatus.PENDING;
+    private InvitationLinkStatus status = InvitationLinkStatus.ACTIVE;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -46,8 +56,4 @@ public class Invitation {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "invitation_link_id")
-    private InvitationLink invitationLink;
 }
