@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 18-01-2026
+
+### Added
+- Invitation link feature, allowing for automatic whitelisting and group invitation
+
 ## [1.0.0] - 26-12-2025
 
 ### Added
