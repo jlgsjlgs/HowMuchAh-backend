@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 25-01-2026
+
+### Changes
+- Optimized Dockerfile by adding CDS and flags to reduce memory utilization
+- Added lazy bean initialization
+- Disabled unused JMX and metrics collection
+- Disabled WebSocket heartbeat stats
+
 ## [1.1.0] - 18-01-2026
 
 ### Added
